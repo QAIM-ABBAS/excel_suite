@@ -23,6 +23,7 @@ import {
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAppStore } from "@/lib/store"
+import { apiFetch, downloadUrl } from "@/lib/api"
 
 interface ColumnStats {
   column: string
@@ -88,7 +89,7 @@ export function StatsTool() {
       // Validate the file is readable by querying columns quickly
       const formData = new FormData()
       formData.append("file", selected)
-      const response = await fetch("/api/tools/columns", { method: "POST", body: formData })
+      const response = await apiFetch("/api/tools/columns", { method: "POST", body: formData })
       const data = await response.json()
       if (!data.success) throw new Error(data.error || "Failed to read file")
     } catch {
@@ -111,7 +112,7 @@ export function StatsTool() {
       formData.append("file", file)
       formData.append("generateReport", "true")
       setProgress(50)
-      const response = await fetch("/api/tools/stats", { method: "POST", body: formData })
+      const response = await apiFetch("/api/tools/stats", { method: "POST", body: formData })
       setProgress(80)
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || "Failed to analyze data")
@@ -215,7 +216,7 @@ export function StatsTool() {
                   </div>
                   {result.downloadUrl && (
                     <Button asChild size="sm">
-                      <a href={result.downloadUrl} download>
+                      <a href={downloadUrl(result.downloadUrl)} download>
                         <Download className="mr-1.5 h-3.5 w-3.5" />
                         Download Report
                       </a>

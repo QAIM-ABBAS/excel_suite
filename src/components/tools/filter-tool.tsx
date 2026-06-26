@@ -16,6 +16,7 @@ import { Filter as FilterIcon, Download, CheckCircle2, Loader2, Eye, RotateCcw, 
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAppStore } from "@/lib/store"
+import { apiFetch, downloadUrl } from "@/lib/api"
 
 type Operator =
   | "equals"
@@ -86,7 +87,7 @@ export function FilterTool() {
     try {
       const formData = new FormData()
       formData.append("file", selected)
-      const response = await fetch("/api/tools/columns", {
+      const response = await apiFetch("/api/tools/columns", {
         method: "POST",
         body: formData,
       })
@@ -158,7 +159,7 @@ export function FilterTool() {
       formData.append("conditions", JSON.stringify(conditions))
       formData.append("combineWith", combineWith)
       setProgress(50)
-      const response = await fetch("/api/tools/filter", {
+      const response = await apiFetch("/api/tools/filter", {
         method: "POST",
         body: formData,
       })
@@ -391,7 +392,7 @@ export function FilterTool() {
 
                 <div className="flex gap-2">
                   <Button asChild className="flex-1" disabled={result.matchedRows === 0}>
-                    <a href={result.downloadUrl} download>
+                    <a href={downloadUrl(result.downloadUrl)} download>
                       <Download className="mr-2 h-4 w-4" />
                       Download
                     </a>

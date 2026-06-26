@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAppStore } from "@/lib/store"
+import { apiFetch, downloadUrl } from "@/lib/api"
 
 type Mode = "transpose" | "unpivot"
 
@@ -55,7 +56,7 @@ export function TransposeTool() {
     try {
       const formData = new FormData()
       formData.append("file", selected)
-      const response = await fetch("/api/tools/columns", { method: "POST", body: formData })
+      const response = await apiFetch("/api/tools/columns", { method: "POST", body: formData })
       const data = await response.json()
       if (data.success && data.sheets.length > 0) {
         setColumns(data.sheets[0].columns)
@@ -91,7 +92,7 @@ export function TransposeTool() {
       }
 
       setProgress(40)
-      const response = await fetch("/api/tools/transpose", { method: "POST", body: formData })
+      const response = await apiFetch("/api/tools/transpose", { method: "POST", body: formData })
       const data = await response.json()
       setProgress(90)
 
@@ -389,7 +390,7 @@ export function TransposeTool() {
                     <Eye className="mr-1 h-3.5 w-3.5" /> Preview Result
                   </Button>
                   <Button asChild>
-                    <a href={result.downloadUrl} download>
+                    <a href={downloadUrl(result.downloadUrl)} download>
                       <Download className="mr-2 h-4 w-4" />
                       Download
                     </a>

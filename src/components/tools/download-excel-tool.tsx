@@ -12,6 +12,7 @@ import { Download, Loader2, CheckCircle2, ExternalLink, Eye, Shield, FileSpreads
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAppStore } from "@/lib/store"
+import { apiFetch, downloadUrl } from "@/lib/api"
 
 interface DownloadResult {
   downloadUrl: string
@@ -57,7 +58,7 @@ export function DownloadExcelTool() {
         setProgress(prev => Math.min(prev + 5, 80))
       }, 500)
 
-      const response = await fetch("/api/tools/download-excel", {
+      const response = await apiFetch("/api/tools/download-excel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url, filename: filename || undefined }),
@@ -197,7 +198,7 @@ export function DownloadExcelTool() {
                 </div>
                 <div className="flex gap-2">
                   <Button asChild className="flex-1">
-                    <a href={result.downloadUrl} download>
+                    <a href={downloadUrl(result.downloadUrl)} download>
                       <Download className="mr-2 h-4 w-4" />
                       Save to Device
                     </a>

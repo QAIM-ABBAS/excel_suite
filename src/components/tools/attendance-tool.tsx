@@ -13,6 +13,7 @@ import { UserCheck, Loader2, CheckCircle2, FileDown, RotateCcw, TrendingUp, Tren
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAppStore } from "@/lib/store"
+import { apiFetch } from "@/lib/api"
 
 interface AttendanceReport {
   rollNumber: string
@@ -44,7 +45,7 @@ export function AttendanceTool() {
       const formData = new FormData()
       formData.append("file", selected)
 
-      const response = await fetch("/api/tools/columns", {
+      const response = await apiFetch("/api/tools/columns", {
         method: "POST",
         body: formData,
       })
@@ -79,7 +80,7 @@ export function AttendanceTool() {
 
       setProgress(50)
 
-      const response = await fetch("/api/tools/attendance", {
+      const response = await apiFetch("/api/tools/attendance", {
         method: "POST",
         body: formData,
       })

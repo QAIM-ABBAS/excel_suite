@@ -15,6 +15,7 @@ import { GitMerge, Download, Trash2, AlertTriangle, CheckCircle2, Loader2, Eye, 
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAppStore } from "@/lib/store"
+import { apiFetch, downloadUrl } from "@/lib/api"
 
 interface MergeResult {
   downloadUrl: string
@@ -69,7 +70,7 @@ export function MergeTool() {
 
       setProgress(40)
 
-      const response = await fetch("/api/tools/merge", {
+      const response = await apiFetch("/api/tools/merge", {
         method: "POST",
         body: formData,
       })
@@ -265,7 +266,7 @@ export function MergeTool() {
 
                 <div className="flex gap-2">
                   <Button asChild className="flex-1">
-                    <a href={result.downloadUrl} download>
+                    <a href={downloadUrl(result.downloadUrl)} download>
                       <Download className="mr-2 h-4 w-4" />
                       Download
                     </a>

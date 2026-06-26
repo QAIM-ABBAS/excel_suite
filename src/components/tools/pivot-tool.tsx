@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAppStore } from "@/lib/store"
+import { apiFetch, downloadUrl } from "@/lib/api"
 
 type AggFn =
   | "sum"
@@ -80,7 +81,7 @@ export function PivotTool() {
     try {
       const formData = new FormData()
       formData.append("file", selected)
-      const response = await fetch("/api/tools/columns", { method: "POST", body: formData })
+      const response = await apiFetch("/api/tools/columns", { method: "POST", body: formData })
       const data = await response.json()
       if (data.success && data.sheets.length > 0) {
         const cols = data.sheets[0].columns
@@ -159,7 +160,7 @@ export function PivotTool() {
       formData.append("groupBy", JSON.stringify(groupBy))
       formData.append("aggregations", JSON.stringify(aggregations.map(({ id: _id, ...rest }) => rest)))
       setProgress(50)
-      const response = await fetch("/api/tools/pivot", { method: "POST", body: formData })
+      const response = await apiFetch("/api/tools/pivot", { method: "POST", body: formData })
       setProgress(80)
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || "Failed to aggregate data")
@@ -417,7 +418,7 @@ export function PivotTool() {
 
                 <div className="flex gap-2">
                   <Button asChild className="flex-1">
-                    <a href={result.downloadUrl} download>
+                    <a href={downloadUrl(result.downloadUrl)} download>
                       <Download className="mr-2 h-4 w-4" />
                       Download
                     </a>

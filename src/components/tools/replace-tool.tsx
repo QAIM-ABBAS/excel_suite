@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAppStore } from "@/lib/store"
+import { apiFetch, downloadUrl } from "@/lib/api"
 
 interface ChangePreview {
   row: number
@@ -72,7 +73,7 @@ export function ReplaceTool() {
     try {
       const formData = new FormData()
       formData.append("file", selected)
-      const response = await fetch("/api/tools/columns", { method: "POST", body: formData })
+      const response = await apiFetch("/api/tools/columns", { method: "POST", body: formData })
       const data = await response.json()
       if (data.success && data.sheets.length > 0) {
         const cols = data.sheets[0].columns
@@ -125,7 +126,7 @@ export function ReplaceTool() {
       formData.append("useRegex", String(useRegex))
 
       setProgress(50)
-      const response = await fetch("/api/tools/replace", { method: "POST", body: formData })
+      const response = await apiFetch("/api/tools/replace", { method: "POST", body: formData })
       setProgress(80)
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || "Failed to perform find & replace")
@@ -418,7 +419,7 @@ export function ReplaceTool() {
 
                 <div className="flex gap-2">
                   <Button asChild className="flex-1" disabled={result.totalMatches === 0}>
-                    <a href={result.downloadUrl} download>
+                    <a href={downloadUrl(result.downloadUrl)} download>
                       <Download className="mr-2 h-4 w-4" />
                       Download
                     </a>

@@ -12,6 +12,7 @@ import { ImageDown, Download, CheckCircle2, Loader2, AlertTriangle, RotateCcw, I
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAppStore } from "@/lib/store"
+import { apiFetch, downloadUrl } from "@/lib/api"
 
 interface ImagesResult {
   downloadUrl: string
@@ -44,7 +45,7 @@ export function DownloadImagesTool() {
       const formData = new FormData()
       formData.append("file", selected)
 
-      const response = await fetch("/api/tools/columns", {
+      const response = await apiFetch("/api/tools/columns", {
         method: "POST",
         body: formData,
       })
@@ -81,7 +82,7 @@ export function DownloadImagesTool() {
         setProgress(prev => Math.min(prev + 3, 85))
       }, 1000)
 
-      const response = await fetch("/api/tools/download-images", {
+      const response = await apiFetch("/api/tools/download-images", {
         method: "POST",
         body: formData,
       })
@@ -314,7 +315,7 @@ export function DownloadImagesTool() {
                 )}
 
                 <Button asChild className="w-full">
-                  <a href={result.downloadUrl} download>
+                  <a href={downloadUrl(result.downloadUrl)} download>
                     <Download className="mr-2 h-4 w-4" />
                     Download Excel with Images
                   </a>

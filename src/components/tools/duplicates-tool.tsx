@@ -15,6 +15,7 @@ import { CopyX, Download, CheckCircle2, Loader2, Eye, FileSpreadsheet, RotateCcw
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAppStore } from "@/lib/store"
+import { apiFetch, downloadUrl } from "@/lib/api"
 
 interface DuplicatesResult {
   downloadUrl: string
@@ -52,7 +53,7 @@ export function DuplicatesTool() {
       const formData = new FormData()
       formData.append("file", selected)
 
-      const response = await fetch("/api/tools/columns", {
+      const response = await apiFetch("/api/tools/columns", {
         method: "POST",
         body: formData,
       })
@@ -88,7 +89,7 @@ export function DuplicatesTool() {
 
       setProgress(50)
 
-      const response = await fetch("/api/tools/duplicates", {
+      const response = await apiFetch("/api/tools/duplicates", {
         method: "POST",
         body: formData,
       })
@@ -308,7 +309,7 @@ export function DuplicatesTool() {
 
                 <div className="flex gap-2">
                   <Button asChild className="flex-1">
-                    <a href={result.downloadUrl} download>
+                    <a href={downloadUrl(result.downloadUrl)} download>
                       <Download className="mr-2 h-4 w-4" />
                       Download
                     </a>

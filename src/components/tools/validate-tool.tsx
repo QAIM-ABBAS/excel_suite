@@ -18,6 +18,7 @@ import {
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAppStore } from "@/lib/store"
+import { apiFetch, downloadUrl } from "@/lib/api"
 
 type CheckName =
   | "empty_cells"
@@ -135,7 +136,7 @@ export function ValidateTool() {
     try {
       const formData = new FormData()
       formData.append("file", selected)
-      const response = await fetch("/api/tools/columns", { method: "POST", body: formData })
+      const response = await apiFetch("/api/tools/columns", { method: "POST", body: formData })
       const data = await response.json()
       if (data.success && data.sheets.length > 0) {
         setColumns(data.sheets[0].columns)
@@ -177,7 +178,7 @@ export function ValidateTool() {
       if (dateColumns.length > 0) formData.append("dateColumns", JSON.stringify(dateColumns))
 
       setProgress(40)
-      const response = await fetch("/api/tools/validate", { method: "POST", body: formData })
+      const response = await apiFetch("/api/tools/validate", { method: "POST", body: formData })
       const data = await response.json()
       setProgress(90)
 
@@ -510,7 +511,7 @@ export function ValidateTool() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Button asChild>
-                    <a href={result.downloadUrl} download>
+                    <a href={downloadUrl(result.downloadUrl)} download>
                       <Download className="mr-2 h-4 w-4" />
                       Download Report
                     </a>

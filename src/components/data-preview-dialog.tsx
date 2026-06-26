@@ -11,6 +11,7 @@ import {
 import { DataTable } from "@/components/data-table"
 import { Loader2, FileSpreadsheet } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { apiFetch } from "@/lib/api"
 
 interface DataPreviewDialogProps {
   open: boolean
@@ -50,7 +51,7 @@ export function DataPreviewDialog({
       setError(null)
     })
 
-    fetch(`/api/tools/preview?file=${encodeURIComponent(filename)}&rows=100`)
+    apiFetch(`/api/tools/preview?file=${encodeURIComponent(filename)}&rows=100`)
       .then(res => res.json())
       .then(result => {
         if (cancelled) return
