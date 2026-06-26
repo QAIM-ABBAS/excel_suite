@@ -17,13 +17,15 @@ import { FilterTool } from "@/components/tools/filter-tool"
 import { StatsTool } from "@/components/tools/stats-tool"
 import { PivotTool } from "@/components/tools/pivot-tool"
 import { ReplaceTool } from "@/components/tools/replace-tool"
+import { ValidateTool } from "@/components/tools/validate-tool"
+import { TransposeTool } from "@/components/tools/transpose-tool"
 import { AttendanceTool } from "@/components/tools/attendance-tool"
 import { DownloadExcelTool } from "@/components/tools/download-excel-tool"
 import { DownloadImagesTool } from "@/components/tools/download-images-tool"
 import { SettingsView } from "@/components/settings-view"
 import { AboutView } from "@/components/about-view"
 import { Separator } from "@/components/ui/separator"
-import { GitMerge, ArrowLeftRight, CopyX, UserCheck, Download, ImageDown, LayoutDashboard, Settings, Info, ArrowUpDown, Filter, BarChart3, Table2, Loader2, Replace } from "lucide-react"
+import { GitMerge, ArrowLeftRight, CopyX, UserCheck, Download, ImageDown, LayoutDashboard, Settings, Info, ArrowUpDown, Filter, BarChart3, Table2, Loader2, Replace, ShieldCheck, FlipHorizontal2 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import type { ToolView } from "@/lib/store"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -38,6 +40,8 @@ const viewMeta: Record<ToolView, { title: string; description: string; icon: typ
   stats: { title: "Statistics & Summary", description: "Analyze column statistics", icon: BarChart3 },
   pivot: { title: "Pivot / Group-By", description: "Group rows and aggregate values", icon: Table2 },
   replace: { title: "Find & Replace", description: "Search and replace text across cells", icon: Replace },
+  validate: { title: "Data Validation", description: "Scan for quality issues", icon: ShieldCheck },
+  transpose: { title: "Transpose / Reshape", description: "Swap rows/columns or unpivot", icon: FlipHorizontal2 },
   attendance: { title: "Attendance Checker", description: "Check student attendance", icon: UserCheck },
   "download-excel": { title: "Download Excel from URL", description: "Fetch files from the web", icon: Download },
   "download-images": { title: "Download Images into Excel", description: "Embed images into spreadsheets", icon: ImageDown },
@@ -64,6 +68,8 @@ export default function Home() {
       case "stats": return <StatsTool />
       case "pivot": return <PivotTool />
       case "replace": return <ReplaceTool />
+      case "validate": return <ValidateTool />
+      case "transpose": return <TransposeTool />
       case "attendance": return <AttendanceTool />
       case "download-excel": return <DownloadExcelTool />
       case "download-images": return <DownloadImagesTool />

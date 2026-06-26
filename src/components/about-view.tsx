@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { FileSpreadsheet, Zap, Shield, Code, Github, Heart, Sparkles, ArrowLeftRight, GitMerge, CopyX, UserCheck, Download, ImageDown, ArrowUpDown, Filter, BarChart3, Table2, Replace } from "lucide-react"
+import { FileSpreadsheet, Zap, Shield, Code, Github, Heart, Sparkles, ArrowLeftRight, GitMerge, CopyX, UserCheck, Download, ImageDown, ArrowUpDown, Filter, BarChart3, Table2, Replace, ShieldCheck, FlipHorizontal2 } from "lucide-react"
 import { useAppStore } from "@/lib/store"
 import { motion } from "framer-motion"
 
@@ -14,6 +14,8 @@ const features = [
   { icon: ArrowUpDown, title: "Data Sorter", description: "Sort data by any column ascending or descending" },
   { icon: Filter, title: "Data Filter", description: "Filter rows by multiple conditions with AND / OR logic" },
   { icon: Replace, title: "Find & Replace", description: "Search and replace text with scope control and change preview" },
+  { icon: ShieldCheck, title: "Data Validation", description: "Scan for empty cells, type mismatches, duplicate keys, format violations, and outliers" },
+  { icon: FlipHorizontal2, title: "Transpose / Reshape", description: "Swap rows and columns, or unpivot wide-format data into long format" },
   { icon: BarChart3, title: "Statistics & Summary", description: "Compute descriptive statistics for every column" },
   { icon: Table2, title: "Pivot / Group-By", description: "Group rows and aggregate values into summary tables" },
   { icon: UserCheck, title: "Attendance Tracking", description: "Calculate attendance statistics and export PDF reports" },
@@ -22,10 +24,10 @@ const features = [
 ]
 
 const stats = [
-  { label: "Tools", value: "11" },
+  { label: "Tools", value: "13" },
   { label: "Max File Size", value: "50MB" },
   { label: "Formats", value: "3" },
-  { label: "Version", value: "2.2.0" },
+  { label: "Version", value: "2.3.0" },
 ]
 
 export function AboutView() {
@@ -47,7 +49,7 @@ export function AboutView() {
               <div>
                 <div className="flex items-center gap-2">
                   <CardTitle className="text-xl">Excel Automation Suite</CardTitle>
-                  <Badge variant="secondary" className="text-[10px]">v2.2.0</Badge>
+                  <Badge variant="secondary" className="text-[10px]">v2.3.0</Badge>
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">Professional spreadsheet automation tools</p>
               </div>

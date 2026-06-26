@@ -22,6 +22,8 @@ const SHORTCUTS: ShortcutItem[] = [
   { keys: ["G", "F"], label: "Go to Data Filter", group: "Navigation" },
   { keys: ["G", "T"], label: "Go to Statistics", group: "Navigation" },
   { keys: ["G", "P"], label: "Go to Pivot / Group-By", group: "Navigation" },
+  { keys: ["G", "V"], label: "Go to Data Validation", group: "Navigation" },
+  { keys: ["G", "R"], label: "Go to Transpose / Reshape", group: "Navigation" },
   { keys: ["↑", "↓"], label: "Navigate command palette results", group: "Command Palette" },
   { keys: ["↵"], label: "Select highlighted command", group: "Command Palette" },
 ]

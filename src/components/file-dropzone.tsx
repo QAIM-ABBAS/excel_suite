@@ -2,7 +2,8 @@
 
 import { useCallback, useId, useState } from "react"
 import { Card } from "@/components/ui/card"
-import { Upload, FileSpreadsheet, X } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Upload, FileSpreadsheet, X, FolderOpen } from "lucide-react"
 import { motion } from "framer-motion"
 
 interface FileDropzoneProps {
@@ -87,19 +88,38 @@ export function FileDropzone({
           onDrop={handleDrop}
           onClick={() => document.getElementById(inputId)?.click()}
         >
-          <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+          <div className="flex flex-col items-center justify-center py-10 px-6 text-center">
             <motion.div
-              animate={{ y: isDragOver ? -5 : 0 }}
+              animate={{ y: isDragOver ? -5 : 0, scale: isDragOver ? 1.1 : 1 }}
               transition={{ type: "spring", stiffness: 300 }}
+              className={`flex h-14 w-14 items-center justify-center rounded-2xl ${
+                isDragOver ? "bg-primary/15 text-primary" : "bg-muted/60 text-muted-foreground"
+              } mb-3 transition-colors`}
             >
               {isDragOver ? (
-                <FileSpreadsheet className="h-10 w-10 text-primary mb-3" />
+                <FileSpreadsheet className="h-7 w-7" />
               ) : (
-                <Upload className="h-10 w-10 text-muted-foreground mb-3" />
+                <Upload className="h-7 w-7" />
               )}
             </motion.div>
             <p className="text-sm font-medium">{label}</p>
             <p className="text-xs text-muted-foreground mt-1">{description}</p>
+            <div className="mt-4 flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs pointer-events-none"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  document.getElementById(inputId)?.click()
+                }}
+              >
+                <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
+                Browse Files
+              </Button>
+              <span className="text-[10px] text-muted-foreground">or drag &amp; drop</span>
+            </div>
           </div>
           <input
             id={inputId}

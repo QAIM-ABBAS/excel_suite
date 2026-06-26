@@ -34,33 +34,35 @@ export function AppFooter({ onOpenShortcuts }: AppFooterProps) {
               Excel Automation Suite
             </span>
             <span className="opacity-50">·</span>
-            <span>v2.2.0</span>
+            <span>v2.3.0</span>
             <span className="opacity-50">·</span>
             <span>© {year}</span>
           </div>
 
           {/* Center: nav links */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 px-2 text-[11px]"
+              className="h-7 px-2.5 text-[11px]"
               onClick={() => setCurrentView("dashboard")}
             >
               Dashboard
             </Button>
+            <span className="opacity-30">·</span>
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 px-2 text-[11px]"
+              className="h-7 px-2.5 text-[11px]"
               onClick={() => setCurrentView("settings")}
             >
               Settings
             </Button>
+            <span className="opacity-30">·</span>
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 px-2 text-[11px]"
+              className="h-7 px-2.5 text-[11px]"
               onClick={() => setCurrentView("about")}
             >
               About
@@ -76,10 +78,11 @@ export function AppFooter({ onOpenShortcuts }: AppFooterProps) {
                 title="Keyboard shortcuts (?)"
               >
                 <Keyboard className="h-3 w-3" />
-                <span>Shortcuts</span>
+                <span className="hidden sm:inline">Shortcuts</span>
                 <kbd className="hidden sm:inline-flex h-4 select-none items-center rounded border bg-muted px-1 font-mono text-[9px]">?</kbd>
               </button>
             )}
+            <span className="hidden md:inline opacity-30">·</span>
             <span className="inline-flex items-center gap-1">
               <Github className="h-3 w-3" />
               <span className="hidden sm:inline">Open Source</span>

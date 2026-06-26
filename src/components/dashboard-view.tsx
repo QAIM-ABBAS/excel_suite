@@ -4,7 +4,7 @@ import { useAppStore, type ToolView } from "@/lib/store"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { GitMerge, ArrowLeftRight, CopyX, UserCheck, Download, ImageDown, FileSpreadsheet, Clock, ArrowRight, Zap, Shield, Sparkles, ArrowUpDown, TrendingUp, Activity, Filter, BarChart3, Table2, Clock3, Replace, X, type LucideIcon } from "lucide-react"
+import { GitMerge, ArrowLeftRight, CopyX, UserCheck, Download, ImageDown, FileSpreadsheet, Clock, ArrowRight, Zap, Shield, Sparkles, ArrowUpDown, TrendingUp, Activity, Filter, BarChart3, Table2, Clock3, Replace, ShieldCheck, FlipHorizontal2, X, type LucideIcon } from "lucide-react"
 import { motion } from "framer-motion"
 import { useEffect, useState } from "react"
 
@@ -76,6 +76,26 @@ const tools: ToolMeta[] = [
     color: "text-fuchsia-500",
     bg: "bg-fuchsia-500/10",
     gradient: "from-fuchsia-500/20",
+    tag: "New",
+  },
+  {
+    id: "validate",
+    title: "Data Validation",
+    description: "Scan for empty cells, type mismatches, duplicate keys, and outliers",
+    icon: ShieldCheck,
+    color: "text-lime-500",
+    bg: "bg-lime-500/10",
+    gradient: "from-lime-500/20",
+    tag: "New",
+  },
+  {
+    id: "transpose",
+    title: "Transpose / Reshape",
+    description: "Swap rows and columns, or unpivot wide data to long format",
+    icon: FlipHorizontal2,
+    color: "text-purple-500",
+    bg: "bg-purple-500/10",
+    gradient: "from-purple-500/20",
     tag: "New",
   },
   {
@@ -156,6 +176,8 @@ const toolLabelMap: Record<string, string> = {
   sort: "Sort",
   filter: "Filter",
   replace: "Replace",
+  validate: "Validate",
+  transpose: "Transpose",
   stats: "Stats",
   pivot: "Pivot",
   attendance: "Attendance",
@@ -170,6 +192,8 @@ const toolColorMap: Record<string, string> = {
   sort: "bg-cyan-500/10 text-cyan-500",
   filter: "bg-orange-500/10 text-orange-500",
   replace: "bg-fuchsia-500/10 text-fuchsia-500",
+  validate: "bg-lime-500/10 text-lime-500",
+  transpose: "bg-purple-500/10 text-purple-500",
   stats: "bg-indigo-500/10 text-indigo-500",
   pivot: "bg-teal-500/10 text-teal-500",
   attendance: "bg-sky-500/10 text-sky-500",
@@ -185,6 +209,8 @@ const toolIconMap: Record<string, LucideIcon> = {
   sort: ArrowUpDown,
   filter: Filter,
   replace: Replace,
+  validate: ShieldCheck,
+  transpose: FlipHorizontal2,
   stats: BarChart3,
   pivot: Table2,
   attendance: UserCheck,

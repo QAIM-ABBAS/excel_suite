@@ -10,7 +10,7 @@ import { useAppStore, type ToolView } from "@/lib/store"
 import {
   LayoutDashboard, GitMerge, ArrowLeftRight, CopyX,
   UserCheck, Download, ImageDown, Settings, Info,
-  Search, CornerDownLeft, ArrowUpDown, Filter, BarChart3, Table2, Replace
+  Search, CornerDownLeft, ArrowUpDown, Filter, BarChart3, Table2, Replace, ShieldCheck, FlipHorizontal2
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -31,6 +31,8 @@ const commands: CommandItem[] = [
   { id: "sort", label: "Data Sorter", description: "Sort data by any column", icon: ArrowUpDown, keywords: ["order", "arrange", "ascending", "descending"] },
   { id: "filter", label: "Data Filter", description: "Filter rows by conditions", icon: Filter, keywords: ["where", "query", "match", "condition", "and", "or"] },
   { id: "replace", label: "Find & Replace", description: "Search and replace text in cells", icon: Replace, keywords: ["substitute", "swap", "search", "regex", "find"] },
+  { id: "validate", label: "Data Validation", description: "Scan for quality issues", icon: ShieldCheck, keywords: ["quality", "check", "empty", "duplicate", "outlier", "format"] },
+  { id: "transpose", label: "Transpose / Reshape", description: "Swap rows/columns or unpivot", icon: FlipHorizontal2, keywords: ["flip", "rotate", "unpivot", "melt", "reshape", "wide", "long"] },
   { id: "stats", label: "Statistics & Summary", description: "Compute column statistics", icon: BarChart3, keywords: ["summary", "sum", "average", "min", "max", "describe", "analyze"] },
   { id: "pivot", label: "Pivot / Group-By", description: "Group rows and aggregate values", icon: Table2, keywords: ["group", "aggregate", "summarize", "pivot", "crosstab"] },
   { id: "attendance", label: "Attendance Checker", description: "Check student attendance", icon: UserCheck, keywords: ["student", "class", "present"] },

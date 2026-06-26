@@ -19,7 +19,7 @@ import { useSyncExternalStore } from "react"
 import {
   LayoutDashboard, GitMerge, ArrowLeftRight, CopyX,
   UserCheck, Download, ImageDown, Settings, Info,
-  Sun, Moon, FileSpreadsheet, ArrowUpDown, Filter, BarChart3, Table2, Replace,
+  Sun, Moon, FileSpreadsheet, ArrowUpDown, Filter, BarChart3, Table2, Replace, ShieldCheck, FlipHorizontal2,
 } from "lucide-react"
 
 const mainNav = [
@@ -33,6 +33,8 @@ const toolNav = [
   { id: "sort" as ToolView, label: "Data Sorter", icon: ArrowUpDown },
   { id: "filter" as ToolView, label: "Data Filter", icon: Filter },
   { id: "replace" as ToolView, label: "Find & Replace", icon: Replace },
+  { id: "validate" as ToolView, label: "Data Validation", icon: ShieldCheck },
+  { id: "transpose" as ToolView, label: "Transpose / Reshape", icon: FlipHorizontal2 },
   { id: "stats" as ToolView, label: "Statistics", icon: BarChart3 },
   { id: "pivot" as ToolView, label: "Pivot / Group-By", icon: Table2 },
   { id: "attendance" as ToolView, label: "Attendance Checker", icon: UserCheck },

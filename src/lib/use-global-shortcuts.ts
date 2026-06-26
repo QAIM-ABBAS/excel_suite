@@ -14,6 +14,8 @@ import { useAppStore, type ToolView } from "@/lib/store"
  *   g f  → Data Filter
  *   g t  → staTs (Statistics)
  *   g p  → Pivot
+ *   g v  → Validate
+ *   g r  → Transpose
  *
  * The pattern is "two-key sequence": press `g`, then within 1 second press the
  * second key. Only triggers when no input/textarea is focused.
@@ -61,6 +63,8 @@ export function useGlobalShortcuts() {
           f: "filter",
           t: "stats",
           p: "pivot",
+          v: "validate",
+          r: "transpose",
         }
         const target = map[key]
         if (target) {

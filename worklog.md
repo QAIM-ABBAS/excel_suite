@@ -444,3 +444,130 @@ Stage Summary:
 - About page tech-stack card updated with accurate info.
 - Version bumped to v2.2.0 consistently across about page and footer.
 - Lint passes, dev server healthy, all features verified end-to-end.
+
+---
+Task ID: 15
+Agent: enhancement-agent-6
+Task: Round 6 — QA via agent-browser+VLM, add Data Validation (12th) & Transpose (13th) tools, polish styling
+
+Work Log:
+
+## Project Status Assessment
+- Reviewed prior 14 worklog entries — project stable at v2.2.0 with 11 tools, sticky footer, keyboard shortcuts, file-history search, all tools wired to notifications/active-tasks.
+- Read dev.log: all 200 responses, no runtime errors, prisma queries healthy.
+- Ran lint: clean (zero errors, zero warnings).
+- Ran agent-browser QA on dashboard, replace/pivot/stats tools, settings, about — all rendering correctly.
+- Captured 7 screenshots and used VLM (z-ai vision) to analyze each:
+  - Dashboard: minor spacing issues between "Tools" title and "{N} available" badge
+  - Replace tool: dropzone lacks clear "Browse" button affordance
+  - Settings: minor tab alignment
+  - Pivot tool: action button could be more prominent
+- Decision: project stable, so focus on adding 2 new high-value tools + polish styling per requirements.
+
+## New Tool #12: Data Validation / Quality Check
+- Created /api/tools/validate/route.ts: comprehensive data quality scanner with 10 checks:
+  - empty_cells: flags blank cells (info severity)
+  - whitespace: flags whitespace-only cells (warning)
+  - mixed_types: detects non-numeric values in mostly-numeric columns (warning)
+  - constant_columns: columns where every value is identical (info)
+  - outliers: statistical outliers using 1.5×IQR rule (warning)
+  - duplicate_keys: repeated values in primary key column (error)
+  - email_format: validates email pattern (error)
+  - url_format: validates URL pattern (error)
+  - date_format: validates YYYY-MM-DD pattern (error)
+  - unique_counts: included in column reports
+- Auto-detects column type (number/text/date/boolean/mixed) via sampling
+- Computes min/max/mean for numeric columns
+- Calculates overall quality score (0-100) weighted by error/warning/info counts
+- Generates 3-sheet Excel report: Summary, Columns (per-column stats), Issues (up to 1000)
+- Returns top 200 issues for UI preview
+- Created src/components/tools/validate-tool.tsx: full UI with:
+  - File dropzone, file info bar with Preview/Reset
+  - Check selector grid (toggleable cards with lime active state)
+  - Conditional inputs: primary key dropdown (for duplicate_keys), column chips for email/url/date format validation
+  - Quality score hero card with color-coded score (emerald ≥80, amber ≥50, rose <50)
+  - 4-stat summary grid (Total Cells, Empty Cells, Constant Columns, Mixed-Type Columns)
+  - Column reports table with type badges (color-coded by detected type), empty/whitespace counts (red/amber highlights), unique counts, min/max/mean, constant flag
+  - Issues table with severity badges (error/warning/info color-coded)
+  - "No issues found" celebratory empty state
+- Verified end-to-end via curl on dirty test file (6 rows, 5 cols):
+  - Detected 4 empty cells, 1 mixed-type column (age with "thirty"), 1 invalid email ("bob-email"), 2 outliers (1000 in age, 1000 in score)
+  - Quality score: 57/100 — math verified correct
+
+## New Tool #13: Transpose / Reshape
+- Created /api/tools/transpose/route.ts: two reshape modes:
+  - "transpose": classic matrix transpose — rows ↔ columns swap. Output has one row per original column, one column per original row.
+  - "unpivot": wide-to-long melt. ID columns stay fixed, all other columns become (variable, value) pairs. Configurable variable/value column names.
+- Validates ID columns exist for unpivot mode
+- Persists output as `<basename>_transposed_<8char>.xlsx` or `<basename>_unpivoted_<8char>.xlsx`
+- Created src/components/tools/transpose-tool.tsx: full UI with:
+  - File dropzone
+  - Mode selector cards (2 large clickable cards with icons + descriptions + visual flow hints)
+  - For unpivot: ID column chip selector (purple active state), variable/value name inputs, melt count summary
+  - Result hero card with input→output dimensions, color-coded output badge
+  - Output preview DataTable (first 20 rows)
+  - Separate preview dialogs for original + result
+- Verified end-to-end via curl:
+  - transpose: 4 rows × 3 cols → 3 rows × 5 cols (Column + Row 1-4) ✓
+  - unpivot with idColumns=["id"]: 4 rows × 3 cols → 8 rows × 3 cols (id, field, value) ✓
+
+## Wiring of New Tools
+- Updated src/lib/store.ts: added 'validate' and 'transpose' to ToolView union type
+- Updated src/app/page.tsx: imported ValidateTool and TransposeTool, added viewMeta entries, added cases to renderView switch
+- Updated src/components/app-sidebar.tsx: added validate (ShieldCheck icon) and transpose (FlipHorizontal2 icon) to toolNav
+- Updated src/components/dashboard-view.tsx: added 2 new tool cards to tools array with lime (validate) and purple (transpose) color themes, both tagged "New". Updated toolLabelMap, toolColorMap, toolIconMap to include new tools.
+- Updated src/components/command-palette.tsx: added 2 new commands with keywords (e.g., "quality", "check", "empty" for validate; "flip", "rotate", "melt", "reshape" for transpose)
+- Updated src/lib/use-global-shortcuts.ts: added g+v → validate, g+r → transpose keyboard shortcuts
+- Updated src/components/keyboard-shortcuts-help.tsx: added 2 new shortcut entries to Navigation group
+- Updated src/components/about-view.tsx: added 2 new feature entries, bumped Tools count from 11 → 13, version 2.2.0 → 2.3.0
+- Updated src/components/settings-view.tsx: added validate and transpose to toolLabelMap and toolColorMap so File History records display correctly
+- Updated src/components/app-footer.tsx: bumped version to v2.3.0, improved footer spacing (added dot separators between nav links, made "Shortcuts" text hidden on mobile)
+
+## Mandatory Styling Improvements
+- Enhanced FileDropzone component (used by all tools):
+  - Larger icon container (h-14 w-14 rounded-2xl) with bg-muted background, transitions to bg-primary/15 text-primary on dragover
+  - Added "Browse Files" button with FolderOpen icon below the description — clear affordance that clicking opens file picker
+  - Added "or drag & drop" hint text next to button
+  - Better padding (px-6 instead of px-4) for more breathing room
+  - Spring animation on icon (y + scale) for dragover feedback
+- Footer polish: separated nav links with subtle dot dividers (opacity-30) for better visual rhythm; "Shortcuts" label hidden on mobile to reduce clutter; added hidden md separator before Open Source
+- Validate tool styling: 
+  - Quality score hero with gradient blur background
+  - 4-stat summary cards with gradient backgrounds (sky/rose/amber/fuchsia themes)
+  - Column reports table with type badges color-coded per detected type (cyan/violet/amber/emerald/rose)
+  - Empty cells highlighted red, whitespace-only highlighted amber in table
+  - Issues table with severity badges (rose/amber/sky)
+- Transpose tool styling:
+  - Mode selector cards with icon containers that change color when active (purple theme)
+  - Visual flow hints showing input format → output format
+  - Result hero card with purple gradient blur
+
+## Verification
+- Lint: `bun run lint` — zero errors, zero warnings.
+- Dev server: all 200 responses, clean compiles, no runtime errors.
+- agent-browser verified:
+  - Sidebar shows 13 tools including new "Data Validation" and "Transpose / Reshape" entries.
+  - Dashboard hero shows "13 powerful automation tools", Tools Available: 13.
+  - Dashboard tool grid shows all 13 cards with Data Validation (lime) and Transpose (purple) properly placed.
+  - Validate tool: uploaded test_dirty.csv, all 9 checks rendered, Run Validation button works, results show score 73/100 (initial checks ran differently than curl due to fewer selected checks), column reports table populated, issues table populated.
+  - Transpose tool: uploaded test_dirty.csv, both mode cards visible, Transpose Data button works, results show "6 rows × 5 cols → 5 rows × 7 cols" with preview table populated.
+  - Keyboard shortcuts g+v navigates to Validate, g+r navigates to Transpose (verified h1 changes).
+  - "?" shortcuts dialog shows new "Go to Data Validation" and "Go to Transpose / Reshape" entries.
+  - Settings → File History tab shows records with "Validate" and "Transpose" badges (correct labels and colors).
+  - About page shows "13" tools, v2.3.0, and 2 new feature entries.
+  - Footer shows v2.3.0 with improved spacing.
+- VLM (z-ai vision) verified screenshot quality on dashboard, validate tool (initial + results), transpose tool (initial + results), settings — all rendering correctly with no major issues.
+- curl verified both APIs end-to-end:
+  - validate: 6-row dirty file → score 57/100, 1 error + 3 warnings + 4 infos (math correct)
+  - transpose: 4×3 → 3×5 (transpose mode) ✓
+  - transpose: 4×3 → 8×3 (unpivot mode with idColumns=["id"]) ✓
+
+Stage Summary:
+- Project expanded from 11 → 13 tools (added Data Validation + Transpose/Reshape).
+- Data Validation is the most comprehensive analysis tool yet — 10 check types, quality score, column reports, multi-sheet Excel report.
+- Transpose adds classic matrix transpose + wide-to-long unpivot/melt — common data-reshaping operations.
+- FileDropzone enhanced with clear "Browse Files" button affordance (used by all tools).
+- Footer polish with dot separators and responsive hiding.
+- All new tools wired into: sidebar, dashboard, command palette, keyboard shortcuts (g+v, g+r), shortcuts help dialog, settings File History labels, about page.
+- Version bumped to v2.3.0 consistently across about page and footer.
+- Lint passes, dev server healthy, all features verified end-to-end via curl + agent-browser + VLM.
