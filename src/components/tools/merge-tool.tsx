@@ -9,7 +9,9 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { GitMerge, Download, Trash2, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react"
+import { DataTable } from "@/components/data-table"
+import { DataPreviewDialog } from "@/components/data-preview-dialog"
+import { GitMerge, Download, Trash2, AlertTriangle, CheckCircle2, Loader2, Eye, FileSpreadsheet } from "lucide-react"
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
 
@@ -20,19 +22,7 @@ interface MergeResult {
   headers: string[]
   hasMismatch: boolean
   mismatchWarning?: string
-}
-
-function FileSpreadsheetIcon() {
-  return (
-    <svg className="h-4 w-4 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/>
-      <path d="M14 2v4a2 2 0 0 0 2 2h4"/>
-      <path d="M8 13h2"/>
-      <path d="M14 13h2"/>
-      <path d="M8 17h2"/>
-      <path d="M14 17h2"/>
-    </svg>
-  )
+  preview?: Record<string, unknown>[]
 }
 
 export function MergeTool() {
@@ -42,6 +32,7 @@ export function MergeTool() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [progress, setProgress] = useState(0)
   const [result, setResult] = useState<MergeResult | null>(null)
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   const handleFilesSelected = (newFiles: File[]) => {
     setFiles(prev => [...prev, ...newFiles])
@@ -50,6 +41,11 @@ export function MergeTool() {
 
   const removeFile = (index: number) => {
     setFiles(prev => prev.filter((_, i) => i !== index))
+    setResult(null)
+  }
+
+  const clearAll = () => {
+    setFiles([])
     setResult(null)
   }
 
@@ -128,7 +124,12 @@ export function MergeTool() {
                 exit={{ opacity: 0, height: 0 }}
                 className="space-y-2"
               >
-                <Label className="text-sm font-medium">Uploaded Files ({files.length})</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">Uploaded Files ({files.length})</Label>
+                  <Button variant="ghost" size="sm" onClick={clearAll} className="h-7 text-xs text-muted-foreground">
+                    Clear All
+                  </Button>
+                </div>
                 {files.map((file, index) => (
                   <motion.div
                     key={`${file.name}-${index}`}
@@ -137,14 +138,14 @@ export function MergeTool() {
                     exit={{ opacity: 0, x: 10 }}
                     className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/30 px-3 py-2"
                   >
-                    <div className="flex items-center gap-2 text-sm">
-                      <FileSpreadsheetIcon />
+                    <div className="flex items-center gap-2 text-sm min-w-0">
+                      <FileSpreadsheet className="h-4 w-4 text-emerald-500 shrink-0" />
                       <span className="truncate max-w-[200px]">{file.name}</span>
-                      <Badge variant="secondary" className="text-[10px]">
+                      <Badge variant="secondary" className="text-[10px] shrink-0">
                         {(file.size / 1024).toFixed(1)} KB
                       </Badge>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeFile(index)}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeFile(index)}>
                       <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
                     </Button>
                   </motion.div>
@@ -223,7 +224,7 @@ export function MergeTool() {
               <CardContent className="space-y-4">
                 {result.hasMismatch && (
                   <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
-                    <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5" />
+                    <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
                     <p className="text-sm text-amber-600 dark:text-amber-400">{result.mismatchWarning}</p>
                   </div>
                 )}
@@ -237,17 +238,44 @@ export function MergeTool() {
                     <p className="text-lg font-semibold">{result.headers.length}</p>
                   </div>
                 </div>
-                <Button asChild className="w-full">
-                  <a href={result.downloadUrl} download>
-                    <Download className="mr-2 h-4 w-4" />
-                    Download Merged File
-                  </a>
-                </Button>
+
+                {result.headers.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Merged Columns</Label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {result.headers.map(h => (
+                        <Badge key={h} variant="outline" className="text-[10px]">
+                          {h}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <Button asChild className="flex-1">
+                    <a href={result.downloadUrl} download>
+                      <Download className="mr-2 h-4 w-4" />
+                      Download
+                    </a>
+                  </Button>
+                  <Button variant="outline" onClick={() => setPreviewOpen(true)} className="flex-1">
+                    <Eye className="mr-2 h-4 w-4" />
+                    Preview Data
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </motion.div>
         )}
       </AnimatePresence>
+
+      <DataPreviewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        filename={result?.filename || ""}
+        title="Merged Data Preview"
+      />
     </div>
   )
 }

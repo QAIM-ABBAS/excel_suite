@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
-import { Download, Loader2, CheckCircle2, ExternalLink } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { DataPreviewDialog } from "@/components/data-preview-dialog"
+import { Download, Loader2, CheckCircle2, ExternalLink, Eye, Shield, FileSpreadsheet, Clock } from "lucide-react"
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
 
@@ -22,10 +24,23 @@ export function DownloadExcelTool() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [progress, setProgress] = useState(0)
   const [result, setResult] = useState<DownloadResult | null>(null)
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   const handleDownload = async () => {
     if (!url) {
       toast.error("Please enter a URL")
+      return
+    }
+
+    // Basic URL validation
+    try {
+      const parsed = new URL(url)
+      if (!["http:", "https:"].includes(parsed.protocol)) {
+        toast.error("Only HTTP/HTTPS URLs are supported")
+        return
+      }
+    } catch {
+      toast.error("Please enter a valid URL")
       return
     }
 
@@ -63,6 +78,14 @@ export function DownloadExcelTool() {
     }
   }
 
+  const formatSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
+  }
+
+  const canPreview = result?.filename.endsWith(".xlsx") || result?.filename.endsWith(".csv")
+
   return (
     <div className="space-y-6 max-w-3xl">
       <Card>
@@ -80,17 +103,18 @@ export function DownloadExcelTool() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="url">File URL</Label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <ExternalLink className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="url"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://example.com/data.xlsx"
-                  className="h-9 pl-9"
-                />
-              </div>
+            <div className="relative">
+              <ExternalLink className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                id="url"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://example.com/data.xlsx"
+                className="h-9 pl-9"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && url) handleDownload()
+                }}
+              />
             </div>
           </div>
 
@@ -103,6 +127,14 @@ export function DownloadExcelTool() {
               placeholder="my-data"
               className="h-9"
             />
+          </div>
+
+          <div className="flex items-start gap-2 rounded-lg border border-violet-500/20 bg-violet-500/5 p-3">
+            <Shield className="h-4 w-4 text-violet-500 mt-0.5 shrink-0" />
+            <div className="text-xs text-violet-600 dark:text-violet-400 space-y-1">
+              <p><strong>Security:</strong> URLs are validated (HTTP/HTTPS only) with a 30-second timeout.</p>
+              <p>Maximum download size: 50MB</p>
+            </div>
           </div>
 
           {isProcessing && (
@@ -139,27 +171,45 @@ export function DownloadExcelTool() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <div className="rounded-lg bg-background p-3">
-                    <p className="text-xs text-muted-foreground">Filename</p>
+                <div className="flex items-center gap-3 rounded-lg bg-background p-3">
+                  <FileSpreadsheet className="h-8 w-8 text-violet-500 shrink-0" />
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium truncate">{result.filename}</p>
-                  </div>
-                  <div className="rounded-lg bg-background p-3">
-                    <p className="text-xs text-muted-foreground">Size</p>
-                    <p className="text-sm font-medium">{(result.size / 1024).toFixed(1)} KB</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <Badge variant="secondary" className="text-[10px]">{formatSize(result.size)}</Badge>
+                      <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                        <Clock className="h-2.5 w-2.5" />
+                        Just now
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <Button asChild className="w-full">
-                  <a href={result.downloadUrl} download>
-                    <Download className="mr-2 h-4 w-4" />
-                    Save to Device
-                  </a>
-                </Button>
+                <div className="flex gap-2">
+                  <Button asChild className="flex-1">
+                    <a href={result.downloadUrl} download>
+                      <Download className="mr-2 h-4 w-4" />
+                      Save to Device
+                    </a>
+                  </Button>
+                  {canPreview && (
+                    <Button variant="outline" onClick={() => setPreviewOpen(true)} className="flex-1">
+                      <Eye className="mr-2 h-4 w-4" />
+                      Preview Data
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </motion.div>
         )}
       </AnimatePresence>
+
+      <DataPreviewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        filename={result?.filename || ""}
+        title="Downloaded Data Preview"
+      />
     </div>
   )
 }

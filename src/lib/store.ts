@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type ToolView = 'dashboard' | 'merge' | 'convert' | 'duplicates' | 'attendance' | 'download-excel' | 'download-images' | 'settings' | 'about'
+export type ToolView = 'dashboard' | 'merge' | 'convert' | 'duplicates' | 'sort' | 'attendance' | 'download-excel' | 'download-images' | 'settings' | 'about'
 export type ThemeMode = 'light' | 'dark'
 
 interface FileHistoryItem {

@@ -111,3 +111,100 @@ Stage Summary:
 - Settings page has 3 tabs: Appearance, File History, Error Logs
 - All views verified working via agent-browser
 - Application is stable and feature-complete
+
+---
+Task ID: 10
+Agent: enhancement-agent
+Task: Hydration fix, DataTable, command palette, data preview, attendance PDF, styling enhancements
+
+Work Log:
+- Fixed hydration error in app-sidebar.tsx and settings-view.tsx using useSyncExternalStore pattern for mounted state (avoids SSR/client mismatch with next-themes)
+- Created reusable DataTable component (src/components/data-table.tsx) with search, pagination, column display, empty states
+- Created DataPreviewDialog component (src/components/data-preview-dialog.tsx) for modal data preview with async loading
+- Created /api/tools/preview/route.ts to fetch file data for preview (supports xlsx and csv)
+- Enhanced merge-tool.tsx: added Clear All button, Preview Data button, merged columns badges
+- Enhanced convert-tool.tsx: added CSV delimiter selection (comma/semicolon/tab/pipe), Preview Data button
+- Enhanced duplicates-tool.tsx: added Reset button, tabbed preview (Kept/Deleted rows), Preview Full Data button
+- Enhanced attendance-tool.tsx: added PDF export via print window (styled report with percentage, stats, detailed breakdown), Reset button, grid layout for details
+- Enhanced download-excel-tool.tsx: added URL validation feedback, security info panel, Preview Data button
+- Enhanced download-images-tool.tsx: added Reset button, filterable results table (All/Success/Failed)
+- Created command-palette.tsx with Ctrl+K shortcut, fuzzy search, keyboard navigation (arrow keys + enter)
+- Enhanced page.tsx with view transitions (AnimatePresence), dynamic header with icon and description
+- Enhanced dashboard-view.tsx with hero section, tool tags (Popular/New), gradient cards, better stats
+- Enhanced about-view.tsx with stats grid, feature cards, performance/security sections
+- All lint errors fixed (react-hooks/set-state-in-effect rule compliance)
+
+Stage Summary:
+- Hydration error resolved
+- 3 new reusable components: DataTable, DataPreviewDialog, CommandPalette
+- All 6 tools enhanced with preview, reset, and better UX
+- Command palette (Ctrl+K) for quick navigation
+- PDF export for attendance reports
+- CSV delimiter support for convert tool
+- Application is production-ready with enhanced UX
+
+---
+Task ID: 11
+Agent: enhancement-agent-2
+Task: QA testing, Data Sorter tool (7th tool), usage insights, file history management, CSS improvements
+
+Work Log:
+
+## QA Testing Results
+- Verified dev server running cleanly (all 200 responses, no runtime errors)
+- Lint passes with zero errors
+- Tested dashboard: hero section, 7 tool cards with tags, recent files, quick stats all render correctly
+- Tested command palette (Ctrl+K): opens, search filters commands, keyboard navigation works
+- Tested merge tool end-to-end: uploaded 2 CSV files, merged successfully (8 rows), preview dialog showed data table
+- Tested duplicates tool end-to-end: uploaded xlsx, removed 2 duplicates, remaining 4 rows shown in preview
+- Tested attendance tool end-to-end: uploaded xlsx, entered roll number 101, got 80% attendance, Export PDF button available
+- Tested settings: File History tab shows records with download links, Error Logs tab works
+
+## Bug Fix
+- Settings tabs were being covered by sticky header when scrolling. Fixed by making the settings tab bar sticky (top-14 z-20) with backdrop blur, so it stays below the main header.
+
+## New Feature: Data Sorter Tool (7th tool)
+- Created /api/tools/sort/route.ts: sorts data by selected column (ascending/descending), supports numeric and string comparison, handles empty values
+- Created src/components/tools/sort-tool.tsx: full UI with file upload, column selection, order toggle (asc/desc with arrow icons), original data preview, sorted result with stats and preview table
+- Added "sort" to ToolView type in store.ts
+- Added Data Sorter to sidebar navigation (cyan color theme, ArrowUpDown icon)
+- Added Data Sorter to page.tsx routing and viewMeta
+- Added Data Sorter to command palette with keywords (order, arrange, ascending, descending)
+- Added Data Sorter card to dashboard with "New" tag
+- Updated toolLabelMap and toolColorMap in dashboard and settings to include "sort"
+- Verified end-to-end: uploaded duplicates.xlsx, sorted by "id" ascending, got correctly sorted output
+
+## New Feature: Usage Insights Panel
+- Enhanced dashboard-view.tsx with "Usage Insights" section showing tool usage breakdown
+- Computes per-tool file counts from history API
+- Displays animated horizontal progress bars for each tool, sorted by usage
+- Only shows when files have been processed (totalFiles > 0)
+
+## New Feature: File History Management
+- Enhanced /api/tools/history/route.ts with DELETE method: supports single record deletion (?id=) and clear-all
+- Deletes associated files from disk when records are removed
+- Enhanced settings-view.tsx File History tab:
+  - Added "Clear All" button (red, with confirmation dialog)
+  - Added per-record delete buttons (trash icon, appears on hover)
+  - Shows record count in card description
+  - Added scrollbar-thin class for styled scrollbars
+
+## CSS/Styling Improvements
+- Enhanced globals.css with:
+  - Custom global scrollbar styling (thin, rounded, hover effects)
+  - Better focus-visible states (ring-2 with offset for accessibility)
+  - Glassmorphism utility class (.glass with backdrop-blur)
+  - Text gradient utility class (.text-gradient)
+  - Selection styling (primary color tint)
+  - Smooth scrolling behavior
+  - Font smoothing (antialiased)
+  - Removed number input spinners
+- Applied scrollbar-thin class to file history list in settings
+
+Stage Summary:
+- All QA tests passed, no bugs found (except the sticky header overlap which was fixed)
+- New 7th tool: Data Sorter - fully functional with ascending/descending sort
+- Dashboard now shows Usage Insights with animated progress bars per tool
+- File History supports bulk clear-all and per-record delete
+- Global CSS enhanced with custom scrollbars, focus states, glassmorphism, and selection styling
+- Lint passes, dev server healthy, all features verified end-to-end

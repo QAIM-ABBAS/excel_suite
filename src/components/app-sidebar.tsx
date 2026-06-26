@@ -15,11 +15,11 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 import { useTheme } from "next-themes"
-import { useEffect, useState } from "react"
+import { useSyncExternalStore } from "react"
 import {
   LayoutDashboard, GitMerge, ArrowLeftRight, CopyX,
   UserCheck, Download, ImageDown, Settings, Info,
-  Sun, Moon, FileSpreadsheet
+  Sun, Moon, FileSpreadsheet, ArrowUpDown
 } from "lucide-react"
 
 const mainNav = [
@@ -30,6 +30,7 @@ const toolNav = [
   { id: "merge" as ToolView, label: "Merge Files", icon: GitMerge },
   { id: "convert" as ToolView, label: "CSV ⇄ Excel", icon: ArrowLeftRight },
   { id: "duplicates" as ToolView, label: "Remove Duplicates", icon: CopyX },
+  { id: "sort" as ToolView, label: "Data Sorter", icon: ArrowUpDown },
   { id: "attendance" as ToolView, label: "Attendance Checker", icon: UserCheck },
   { id: "download-excel" as ToolView, label: "Download Excel", icon: Download },
   { id: "download-images" as ToolView, label: "Download Images", icon: ImageDown },
@@ -40,12 +41,20 @@ const bottomNav = [
   { id: "about" as ToolView, label: "About", icon: Info },
 ]
 
+// Track whether the component has mounted on the client (avoids hydration mismatch with theme)
+const emptySubscribe = () => () => {}
+function useMounted() {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => true, // client snapshot
+    () => false  // server snapshot
+  )
+}
+
 export function AppSidebar() {
   const { currentView, setCurrentView } = useAppStore()
   const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => setMounted(true), [])
+  const mounted = useMounted()
 
   const isDark = mounted ? (theme === "dark" || (!theme && true)) : true
 

@@ -8,7 +8,9 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Progress } from "@/components/ui/progress"
-import { ArrowLeftRight, Download, CheckCircle2, Loader2 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { DataPreviewDialog } from "@/components/data-preview-dialog"
+import { ArrowLeftRight, Download, CheckCircle2, Loader2, Eye, FileSpreadsheet } from "lucide-react"
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
 
@@ -23,9 +25,11 @@ export function ConvertTool() {
   const [targetFormat, setTargetFormat] = useState("xlsx")
   const [sheets, setSheets] = useState<string[]>([])
   const [selectedSheet, setSelectedSheet] = useState("")
+  const [delimiter, setDelimiter] = useState(",")
   const [isProcessing, setIsProcessing] = useState(false)
   const [progress, setProgress] = useState(0)
   const [result, setResult] = useState<ConvertResult | null>(null)
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   const handleFileSelected = async (files: File[]) => {
     const selected = files[0]
@@ -66,6 +70,7 @@ export function ConvertTool() {
       formData.append("file", file)
       formData.append("targetFormat", targetFormat)
       if (selectedSheet) formData.append("sheetName", selectedSheet)
+      formData.append("delimiter", delimiter)
 
       setProgress(50)
 
@@ -92,6 +97,7 @@ export function ConvertTool() {
 
   const detectedFormat = file?.name.endsWith(".csv") ? "CSV" : "Excel"
   const canConvert = targetFormat === "xlsx" ? "CSV → Excel" : "Excel → CSV"
+  const showDelimiter = targetFormat === "csv" || (file?.name.endsWith(".csv") ?? false)
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -117,8 +123,18 @@ export function ConvertTool() {
 
           {file && (
             <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
-              <p className="text-sm font-medium">{file.name}</p>
-              <p className="text-xs text-muted-foreground">{detectedFormat} format • {(file.size / 1024).toFixed(1)} KB</p>
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet className="h-4 w-4 text-amber-500 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium truncate">{file.name}</p>
+                  <p className="text-xs text-muted-foreground">{detectedFormat} format • {(file.size / 1024).toFixed(1)} KB</p>
+                </div>
+                {sheets.length > 0 && (
+                  <Badge variant="secondary" className="text-[10px] shrink-0">
+                    {sheets.length} sheet{sheets.length > 1 ? "s" : ""}
+                  </Badge>
+                )}
+              </div>
             </div>
           )}
 
@@ -136,21 +152,40 @@ export function ConvertTool() {
             </RadioGroup>
           </div>
 
-          {sheets.length > 1 && targetFormat === "csv" && (
-            <div className="space-y-2">
-              <Label>Select Sheet</Label>
-              <Select value={selectedSheet} onValueChange={setSelectedSheet}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select sheet" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sheets.map(sheet => (
-                    <SelectItem key={sheet} value={sheet}>{sheet}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          <div className="grid gap-4 sm:grid-cols-2">
+            {sheets.length > 1 && targetFormat === "csv" && (
+              <div className="space-y-2">
+                <Label>Select Sheet</Label>
+                <Select value={selectedSheet} onValueChange={setSelectedSheet}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select sheet" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sheets.map(sheet => (
+                      <SelectItem key={sheet} value={sheet}>{sheet}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {showDelimiter && (
+              <div className="space-y-2">
+                <Label>CSV Delimiter</Label>
+                <Select value={delimiter} onValueChange={setDelimiter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select delimiter" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value=",">Comma (,)</SelectItem>
+                    <SelectItem value=";">Semicolon (;)</SelectItem>
+                    <SelectItem value="\t">Tab</SelectItem>
+                    <SelectItem value="|">Pipe (|)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
 
           {isProcessing && (
             <div className="space-y-2">
@@ -185,18 +220,35 @@ export function ConvertTool() {
                   <CardTitle className="text-base">Conversion Complete</CardTitle>
                 </div>
               </CardHeader>
-              <CardContent>
-                <Button asChild className="w-full">
-                  <a href={result.downloadUrl} download>
-                    <Download className="mr-2 h-4 w-4" />
-                    Download Converted File
-                  </a>
-                </Button>
+              <CardContent className="space-y-4">
+                <div className="rounded-lg bg-background p-3">
+                  <p className="text-xs text-muted-foreground">Output File</p>
+                  <p className="text-sm font-medium truncate">{result.filename}</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button asChild className="flex-1">
+                    <a href={result.downloadUrl} download>
+                      <Download className="mr-2 h-4 w-4" />
+                      Download
+                    </a>
+                  </Button>
+                  <Button variant="outline" onClick={() => setPreviewOpen(true)} className="flex-1">
+                    <Eye className="mr-2 h-4 w-4" />
+                    Preview Data
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </motion.div>
         )}
       </AnimatePresence>
+
+      <DataPreviewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        filename={result?.filename || ""}
+        title="Converted Data Preview"
+      />
     </div>
   )
 }

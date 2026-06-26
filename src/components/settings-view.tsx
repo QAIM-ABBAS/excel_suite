@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { useTheme } from "next-themes"
 import { FileSpreadsheet, Clock, AlertTriangle, Trash2, Download, Loader2 } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useSyncExternalStore, useEffect, useState } from "react"
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
 
@@ -35,6 +35,7 @@ const toolLabelMap: Record<string, string> = {
   merge: "Merge",
   convert: "Convert",
   duplicates: "Duplicates",
+  sort: "Sort",
   attendance: "Attendance",
   "download-excel": "Download",
   "download-images": "Images",
@@ -44,14 +45,20 @@ const toolColorMap: Record<string, string> = {
   merge: "bg-emerald-500/10 text-emerald-500",
   convert: "bg-amber-500/10 text-amber-500",
   duplicates: "bg-rose-500/10 text-rose-500",
+  sort: "bg-cyan-500/10 text-cyan-500",
   attendance: "bg-sky-500/10 text-sky-500",
   "download-excel": "bg-violet-500/10 text-violet-500",
   "download-images": "bg-pink-500/10 text-pink-500",
 }
 
+const emptySubscribe = () => () => {}
+function useMounted() {
+  return useSyncExternalStore(emptySubscribe, () => true, () => false)
+}
+
 export function SettingsView() {
   const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
+  const mounted = useMounted()
   const [fileHistory, setFileHistory] = useState<FileRecord[]>([])
   const [errorLogs, setErrorLogs] = useState<ErrorLogItem[]>([])
   const [loadingHistory, setLoadingHistory] = useState(true)
@@ -59,7 +66,6 @@ export function SettingsView() {
   const [activeTab, setActiveTab] = useState<"appearance" | "history" | "errors">("appearance")
 
   useEffect(() => {
-    setMounted(true)
     fetchFileHistory()
     fetchErrorLogs()
   }, [])
@@ -100,23 +106,57 @@ export function SettingsView() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
 
+  const handleDeleteRecord = async (id: string) => {
+    try {
+      const res = await fetch(`/api/tools/history?id=${encodeURIComponent(id)}`, { method: "DELETE" })
+      const data = await res.json()
+      if (data.success) {
+        toast.success("Record deleted")
+        fetchFileHistory()
+      } else {
+        toast.error(data.error || "Failed to delete record")
+      }
+    } catch {
+      toast.error("Failed to delete record")
+    }
+  }
+
+  const handleClearAll = async () => {
+    if (fileHistory.length === 0) return
+    if (!confirm(`Delete all ${fileHistory.length} file records? This cannot be undone.`)) return
+    try {
+      const res = await fetch("/api/tools/history", { method: "DELETE" })
+      const data = await res.json()
+      if (data.success) {
+        toast.success(data.message || "All records cleared")
+        setFileHistory([])
+      } else {
+        toast.error(data.error || "Failed to clear history")
+      }
+    } catch {
+      toast.error("Failed to clear history")
+    }
+  }
+
   return (
     <div className="space-y-6 max-w-3xl">
-      {/* Tab Navigation */}
-      <div className="flex gap-1 rounded-lg bg-muted/50 p-1">
-        {(["appearance", "history", "errors"] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-all ${
-              activeTab === tab
-                ? "bg-background shadow-sm text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {tab === "appearance" ? "Appearance" : tab === "history" ? "File History" : "Error Logs"}
-          </button>
-        ))}
+      {/* Tab Navigation - sticky below the main header (h-14 = 56px) */}
+      <div className="sticky top-14 z-20 -mx-4 px-4 py-2 bg-background/80 backdrop-blur-md border-b border-border/50">
+        <div className="flex gap-1 rounded-lg bg-muted/50 p-1 max-w-3xl">
+          {(["appearance", "history", "errors"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-all ${
+                activeTab === tab
+                  ? "bg-background shadow-sm text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {tab === "appearance" ? "Appearance" : tab === "history" ? "File History" : "Error Logs"}
+            </button>
+          ))}
+        </div>
       </div>
 
       <AnimatePresence mode="wait">
@@ -198,12 +238,24 @@ export function SettingsView() {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle>File History</CardTitle>
-                    <CardDescription>Recent file processing activity</CardDescription>
+                    <CardDescription>
+                      {fileHistory.length > 0
+                        ? `${fileHistory.length} ${fileHistory.length === 1 ? "record" : "records"}`
+                        : "Recent file processing activity"}
+                    </CardDescription>
                   </div>
-                  <Button variant="outline" size="sm" onClick={fetchFileHistory}>
-                    <Clock className="h-3.5 w-3.5 mr-1" />
-                    Refresh
-                  </Button>
+                  <div className="flex gap-2">
+                    {fileHistory.length > 0 && (
+                      <Button variant="outline" size="sm" onClick={handleClearAll} className="text-destructive hover:text-destructive">
+                        <Trash2 className="h-3.5 w-3.5 mr-1" />
+                        Clear All
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" onClick={fetchFileHistory}>
+                      <Clock className="h-3.5 w-3.5 mr-1" />
+                      Refresh
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -217,11 +269,11 @@ export function SettingsView() {
                     <p className="text-sm text-muted-foreground">No files processed yet</p>
                   </div>
                 ) : (
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                  <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-thin">
                     {fileHistory.map((file) => (
                       <div
                         key={file.id}
-                        className="flex items-center gap-3 rounded-lg border border-border/50 p-3 hover:bg-muted/30 transition-colors"
+                        className="flex items-center gap-3 rounded-lg border border-border/50 p-3 hover:bg-muted/30 transition-colors group"
                       >
                         <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${toolColorMap[file.tool] || "bg-muted text-muted-foreground"}`}>
                           <FileSpreadsheet className="h-4 w-4" />
@@ -238,17 +290,25 @@ export function SettingsView() {
                             <span className="text-[10px] text-muted-foreground">{formatSize(file.size)}</span>
                           </div>
                         </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-[10px] text-muted-foreground">{formatDate(file.createdAt)}</p>
+                        <div className="flex items-center gap-1 shrink-0">
                           {file.status === "completed" && (
                             <a
                               href={`/api/tools/download?file=${encodeURIComponent(file.filename)}`}
-                              className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline mt-0.5"
+                              className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline"
+                              title="Download file"
                             >
-                              <Download className="h-2.5 w-2.5" />
-                              Download
+                              <Download className="h-3 w-3" />
                             </a>
                           )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                            onClick={() => handleDeleteRecord(file.id)}
+                            title="Delete record"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
                         </div>
                       </div>
                     ))}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useState } from "react"
+import { useCallback, useId, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Upload, FileSpreadsheet, X } from "lucide-react"
 import { motion } from "framer-motion"
@@ -24,6 +24,8 @@ export function FileDropzone({
 }: FileDropzoneProps) {
   const [isDragOver, setIsDragOver] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Unique input id to avoid clashing when multiple dropzones are mounted at once
+  const inputId = useId()
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -83,7 +85,7 @@ export function FileDropzone({
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          onClick={() => document.getElementById("file-input")?.click()}
+          onClick={() => document.getElementById(inputId)?.click()}
         >
           <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
             <motion.div
@@ -100,7 +102,7 @@ export function FileDropzone({
             <p className="text-xs text-muted-foreground mt-1">{description}</p>
           </div>
           <input
-            id="file-input"
+            id={inputId}
             type="file"
             accept={accept}
             multiple={multiple}
