@@ -10,7 +10,7 @@ import { useAppStore, type ToolView } from "@/lib/store"
 import {
   LayoutDashboard, GitMerge, ArrowLeftRight, CopyX,
   UserCheck, Download, ImageDown, Settings, Info,
-  Search, CornerDownLeft, ArrowUpDown, Filter, BarChart3
+  Search, CornerDownLeft, ArrowUpDown, Filter, BarChart3, Table2, Replace
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -30,7 +30,9 @@ const commands: CommandItem[] = [
   { id: "duplicates", label: "Remove Duplicates", description: "Delete duplicate rows", icon: CopyX, keywords: ["dedupe", "unique", "clean"] },
   { id: "sort", label: "Data Sorter", description: "Sort data by any column", icon: ArrowUpDown, keywords: ["order", "arrange", "ascending", "descending"] },
   { id: "filter", label: "Data Filter", description: "Filter rows by conditions", icon: Filter, keywords: ["where", "query", "match", "condition", "and", "or"] },
+  { id: "replace", label: "Find & Replace", description: "Search and replace text in cells", icon: Replace, keywords: ["substitute", "swap", "search", "regex", "find"] },
   { id: "stats", label: "Statistics & Summary", description: "Compute column statistics", icon: BarChart3, keywords: ["summary", "sum", "average", "min", "max", "describe", "analyze"] },
+  { id: "pivot", label: "Pivot / Group-By", description: "Group rows and aggregate values", icon: Table2, keywords: ["group", "aggregate", "summarize", "pivot", "crosstab"] },
   { id: "attendance", label: "Attendance Checker", description: "Check student attendance", icon: UserCheck, keywords: ["student", "class", "present"] },
   { id: "download-excel", label: "Download Excel from URL", description: "Download files from the web", icon: Download, keywords: ["url", "fetch", "remote"] },
   { id: "download-images", label: "Download Images", description: "Embed images into Excel", icon: ImageDown, keywords: ["pictures", "photos", "embed"] },

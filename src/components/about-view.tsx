@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { FileSpreadsheet, Zap, Shield, Code, Github, Heart, Sparkles, ArrowLeftRight, GitMerge, CopyX, UserCheck, Download, ImageDown, ArrowUpDown, Filter, BarChart3 } from "lucide-react"
+import { FileSpreadsheet, Zap, Shield, Code, Github, Heart, Sparkles, ArrowLeftRight, GitMerge, CopyX, UserCheck, Download, ImageDown, ArrowUpDown, Filter, BarChart3, Table2, Replace } from "lucide-react"
 import { useAppStore } from "@/lib/store"
 import { motion } from "framer-motion"
 
@@ -13,17 +13,19 @@ const features = [
   { icon: CopyX, title: "Duplicate Removal", description: "Find and remove duplicates with first/last occurrence options" },
   { icon: ArrowUpDown, title: "Data Sorter", description: "Sort data by any column ascending or descending" },
   { icon: Filter, title: "Data Filter", description: "Filter rows by multiple conditions with AND / OR logic" },
+  { icon: Replace, title: "Find & Replace", description: "Search and replace text with scope control and change preview" },
   { icon: BarChart3, title: "Statistics & Summary", description: "Compute descriptive statistics for every column" },
+  { icon: Table2, title: "Pivot / Group-By", description: "Group rows and aggregate values into summary tables" },
   { icon: UserCheck, title: "Attendance Tracking", description: "Calculate attendance statistics and export PDF reports" },
   { icon: Download, title: "URL Downloads", description: "Download spreadsheet files from any web URL" },
   { icon: ImageDown, title: "Image Embedding", description: "Batch download images and embed into Excel spreadsheets" },
 ]
 
 const stats = [
-  { label: "Tools", value: "9" },
+  { label: "Tools", value: "11" },
   { label: "Max File Size", value: "50MB" },
   { label: "Formats", value: "3" },
-  { label: "Version", value: "2.0.0" },
+  { label: "Version", value: "2.2.0" },
 ]
 
 export function AboutView() {
@@ -45,7 +47,7 @@ export function AboutView() {
               <div>
                 <div className="flex items-center gap-2">
                   <CardTitle className="text-xl">Excel Automation Suite</CardTitle>
-                  <Badge variant="secondary" className="text-[10px]">v2.0.0</Badge>
+                  <Badge variant="secondary" className="text-[10px]">v2.2.0</Badge>
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">Professional spreadsheet automation tools</p>
               </div>
@@ -154,10 +156,13 @@ export function AboutView() {
         <CardContent className="pt-6">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Code className="h-3.5 w-3.5" />
-              <span>Built with Next.js, TypeScript, Tailwind CSS, and shadcn/ui</span>
+              <Code className="h-3.5 w-3.5 text-primary" />
+              <span>Built with Next.js 16, TypeScript, Tailwind CSS, Prisma, and shadcn/ui</span>
             </div>
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Github className="h-3.5 w-3.5" />
+              <span>Open architecture</span>
+              <span className="opacity-50">·</span>
               <span>Made with</span>
               <Heart className="h-3 w-3 text-rose-500 fill-rose-500" />
               <span>for productivity</span>

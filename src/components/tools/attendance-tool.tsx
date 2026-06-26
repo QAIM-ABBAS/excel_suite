@@ -12,6 +12,7 @@ import { Progress } from "@/components/ui/progress"
 import { UserCheck, Loader2, CheckCircle2, FileDown, RotateCcw, TrendingUp, TrendingDown, XCircle } from "lucide-react"
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
+import { useAppStore } from "@/lib/store"
 
 interface AttendanceReport {
   rollNumber: string
@@ -23,6 +24,7 @@ interface AttendanceReport {
 }
 
 export function AttendanceTool() {
+  const { incrementActiveTasks, decrementActiveTasks, pushNotification } = useAppStore()
   const [file, setFile] = useState<File | null>(null)
   const [columns, setColumns] = useState<string[]>([])
   const [selectedColumn, setSelectedColumn] = useState("")
@@ -67,6 +69,7 @@ export function AttendanceTool() {
 
     setIsProcessing(true)
     setProgress(20)
+    incrementActiveTasks()
 
     try {
       const formData = new FormData()
@@ -89,10 +92,18 @@ export function AttendanceTool() {
       setProgress(100)
       setReport(data.report)
       toast.success("Attendance report generated!")
+      pushNotification({
+        title: "Attendance checked",
+        description: `Roll ${rollNumber}: ${data.report.attendancePercentage}% (${data.report.presentCount}/${data.report.totalClasses} classes)`,
+        type: Number(data.report.attendancePercentage) >= 75 ? "success" : "warning",
+      })
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to check attendance")
+      const msg = error instanceof Error ? error.message : "Failed to check attendance"
+      toast.error(msg)
+      pushNotification({ title: "Attendance check failed", description: msg, type: "error" })
     } finally {
       setIsProcessing(false)
+      decrementActiveTasks()
       setTimeout(() => setProgress(0), 1000)
     }
   }

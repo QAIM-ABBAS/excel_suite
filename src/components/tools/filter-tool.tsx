@@ -15,6 +15,7 @@ import { DataPreviewDialog } from "@/components/data-preview-dialog"
 import { Filter as FilterIcon, Download, CheckCircle2, Loader2, Eye, RotateCcw, Plus, Trash2, Zap } from "lucide-react"
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
+import { useAppStore } from "@/lib/store"
 
 type Operator =
   | "equals"
@@ -65,6 +66,7 @@ let conditionSeq = 0
 const newConditionId = () => `cond-${++conditionSeq}-${Date.now()}`
 
 export function FilterTool() {
+  const { incrementActiveTasks, decrementActiveTasks, pushNotification } = useAppStore()
   const [file, setFile] = useState<File | null>(null)
   const [columns, setColumns] = useState<string[]>([])
   const [conditions, setConditions] = useState<Condition[]>([])
@@ -149,6 +151,7 @@ export function FilterTool() {
 
     setIsProcessing(true)
     setProgress(20)
+    incrementActiveTasks()
     try {
       const formData = new FormData()
       formData.append("file", file)
@@ -167,10 +170,18 @@ export function FilterTool() {
       toast.success(
         `Filtered: ${data.matchedRows} of ${data.totalRows} rows matched (${data.removedRows} removed)`
       )
+      pushNotification({
+        title: "Filter complete",
+        description: `${data.matchedRows} of ${data.totalRows} rows matched (${conditions.length} condition${conditions.length === 1 ? "" : "s"}, ${combineWith})`,
+        type: data.matchedRows > 0 ? "success" : "warning",
+      })
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to filter data")
+      const msg = error instanceof Error ? error.message : "Failed to filter data"
+      toast.error(msg)
+      pushNotification({ title: "Filter failed", description: msg, type: "error" })
     } finally {
       setIsProcessing(false)
+      decrementActiveTasks()
       setTimeout(() => setProgress(0), 1000)
     }
   }

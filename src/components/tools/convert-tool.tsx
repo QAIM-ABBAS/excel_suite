@@ -13,6 +13,7 @@ import { DataPreviewDialog } from "@/components/data-preview-dialog"
 import { ArrowLeftRight, Download, CheckCircle2, Loader2, Eye, FileSpreadsheet } from "lucide-react"
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
+import { useAppStore } from "@/lib/store"
 
 interface ConvertResult {
   downloadUrl: string
@@ -21,6 +22,7 @@ interface ConvertResult {
 }
 
 export function ConvertTool() {
+  const { incrementActiveTasks, decrementActiveTasks, pushNotification } = useAppStore()
   const [file, setFile] = useState<File | null>(null)
   const [targetFormat, setTargetFormat] = useState("xlsx")
   const [sheets, setSheets] = useState<string[]>([])
@@ -64,6 +66,7 @@ export function ConvertTool() {
 
     setIsProcessing(true)
     setProgress(20)
+    incrementActiveTasks()
 
     try {
       const formData = new FormData()
@@ -87,10 +90,18 @@ export function ConvertTool() {
       setProgress(100)
       setResult(data)
       toast.success("File converted successfully!")
+      pushNotification({
+        title: "Conversion complete",
+        description: `${file.name} → ${targetFormat.toUpperCase()}`,
+        type: "success",
+      })
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Conversion failed")
+      const msg = error instanceof Error ? error.message : "Conversion failed"
+      toast.error(msg)
+      pushNotification({ title: "Conversion failed", description: msg, type: "error" })
     } finally {
       setIsProcessing(false)
+      decrementActiveTasks()
       setTimeout(() => setProgress(0), 1000)
     }
   }

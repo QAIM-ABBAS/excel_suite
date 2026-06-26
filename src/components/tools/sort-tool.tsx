@@ -14,6 +14,7 @@ import { DataPreviewDialog } from "@/components/data-preview-dialog"
 import { ArrowUpDown, Download, CheckCircle2, Loader2, Eye, RotateCcw, ArrowUp, ArrowDown } from "lucide-react"
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
+import { useAppStore } from "@/lib/store"
 
 interface SortResult {
   downloadUrl: string
@@ -25,6 +26,7 @@ interface SortResult {
 }
 
 export function SortTool() {
+  const { incrementActiveTasks, decrementActiveTasks, pushNotification } = useAppStore()
   const [file, setFile] = useState<File | null>(null)
   const [columns, setColumns] = useState<string[]>([])
   const [selectedColumn, setSelectedColumn] = useState("")
@@ -72,6 +74,7 @@ export function SortTool() {
 
     setIsProcessing(true)
     setProgress(20)
+    incrementActiveTasks()
 
     try {
       const formData = new FormData()
@@ -94,10 +97,18 @@ export function SortTool() {
       setProgress(100)
       setResult(data)
       toast.success(`Data sorted by "${selectedColumn}" (${order === "asc" ? "ascending" : "descending"})!`)
+      pushNotification({
+        title: "Sort complete",
+        description: `${data.totalRows} rows sorted by "${selectedColumn}" ${order === "asc" ? "ascending" : "descending"}`,
+        type: "success",
+      })
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to sort data")
+      const msg = error instanceof Error ? error.message : "Failed to sort data"
+      toast.error(msg)
+      pushNotification({ title: "Sort failed", description: msg, type: "error" })
     } finally {
       setIsProcessing(false)
+      decrementActiveTasks()
       setTimeout(() => setProgress(0), 1000)
     }
   }

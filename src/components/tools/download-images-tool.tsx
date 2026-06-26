@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress"
 import { ImageDown, Download, CheckCircle2, Loader2, AlertTriangle, RotateCcw, Image as ImageIcon, XCircle } from "lucide-react"
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
+import { useAppStore } from "@/lib/store"
 
 interface ImagesResult {
   downloadUrl: string
@@ -22,6 +23,7 @@ interface ImagesResult {
 }
 
 export function DownloadImagesTool() {
+  const { incrementActiveTasks, decrementActiveTasks, pushNotification } = useAppStore()
   const [file, setFile] = useState<File | null>(null)
   const [columns, setColumns] = useState<string[]>([])
   const [selectedColumn, setSelectedColumn] = useState("")
@@ -67,6 +69,7 @@ export function DownloadImagesTool() {
 
     setIsProcessing(true)
     setProgress(10)
+    incrementActiveTasks()
 
     try {
       const formData = new FormData()
@@ -96,10 +99,18 @@ export function DownloadImagesTool() {
       if (data.failCount > 0) {
         toast.warning(`${data.failCount} images failed to download`)
       }
+      pushNotification({
+        title: "Image batch complete",
+        description: `${data.successCount} succeeded, ${data.failCount} failed of ${data.totalRows} total`,
+        type: data.failCount > 0 ? "warning" : "success",
+      })
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to process images")
+      const msg = error instanceof Error ? error.message : "Failed to process images"
+      toast.error(msg)
+      pushNotification({ title: "Image batch failed", description: msg, type: "error" })
     } finally {
       setIsProcessing(false)
+      decrementActiveTasks()
       setTimeout(() => setProgress(0), 1000)
     }
   }

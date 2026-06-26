@@ -4,7 +4,7 @@ import { useAppStore, type ToolView } from "@/lib/store"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { GitMerge, ArrowLeftRight, CopyX, UserCheck, Download, ImageDown, FileSpreadsheet, Clock, ArrowRight, Zap, Shield, Sparkles, ArrowUpDown, TrendingUp, Activity, Filter, BarChart3, Clock3, type LucideIcon } from "lucide-react"
+import { GitMerge, ArrowLeftRight, CopyX, UserCheck, Download, ImageDown, FileSpreadsheet, Clock, ArrowRight, Zap, Shield, Sparkles, ArrowUpDown, TrendingUp, Activity, Filter, BarChart3, Table2, Clock3, Replace, X, type LucideIcon } from "lucide-react"
 import { motion } from "framer-motion"
 import { useEffect, useState } from "react"
 
@@ -69,6 +69,16 @@ const tools: ToolMeta[] = [
     tag: "New",
   },
   {
+    id: "replace",
+    title: "Find & Replace",
+    description: "Search and replace text with scope control and preview",
+    icon: Replace,
+    color: "text-fuchsia-500",
+    bg: "bg-fuchsia-500/10",
+    gradient: "from-fuchsia-500/20",
+    tag: "New",
+  },
+  {
     id: "stats",
     title: "Statistics",
     description: "Compute descriptive statistics for every column",
@@ -76,6 +86,16 @@ const tools: ToolMeta[] = [
     color: "text-indigo-500",
     bg: "bg-indigo-500/10",
     gradient: "from-indigo-500/20",
+    tag: "New",
+  },
+  {
+    id: "pivot",
+    title: "Pivot / Group-By",
+    description: "Group rows and aggregate values into a summary table",
+    icon: Table2,
+    color: "text-teal-500",
+    bg: "bg-teal-500/10",
+    gradient: "from-teal-500/20",
     tag: "New",
   },
   {
@@ -135,7 +155,9 @@ const toolLabelMap: Record<string, string> = {
   duplicates: "Duplicates",
   sort: "Sort",
   filter: "Filter",
+  replace: "Replace",
   stats: "Stats",
+  pivot: "Pivot",
   attendance: "Attendance",
   "download-excel": "Download",
   "download-images": "Images",
@@ -147,7 +169,9 @@ const toolColorMap: Record<string, string> = {
   duplicates: "bg-rose-500/10 text-rose-500",
   sort: "bg-cyan-500/10 text-cyan-500",
   filter: "bg-orange-500/10 text-orange-500",
+  replace: "bg-fuchsia-500/10 text-fuchsia-500",
   stats: "bg-indigo-500/10 text-indigo-500",
+  pivot: "bg-teal-500/10 text-teal-500",
   attendance: "bg-sky-500/10 text-sky-500",
   "download-excel": "bg-violet-500/10 text-violet-500",
   "download-images": "bg-pink-500/10 text-pink-500",
@@ -160,14 +184,16 @@ const toolIconMap: Record<string, LucideIcon> = {
   duplicates: CopyX,
   sort: ArrowUpDown,
   filter: Filter,
+  replace: Replace,
   stats: BarChart3,
+  pivot: Table2,
   attendance: UserCheck,
   "download-excel": Download,
   "download-images": ImageDown,
 }
 
 export function DashboardView() {
-  const { setCurrentView, recentTools } = useAppStore()
+  const { setCurrentView, recentTools, clearRecentTools } = useAppStore()
   const [recentFiles, setRecentFiles] = useState<FileRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [totalFiles, setTotalFiles] = useState(0)
@@ -277,6 +303,14 @@ export function DashboardView() {
                 <span className="font-medium">{tool.title}</span>
               </motion.button>
             ))}
+            <button
+              onClick={clearRecentTools}
+              className="inline-flex items-center justify-center rounded-full border border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/60 p-1 transition-colors"
+              title="Clear recently used list"
+              aria-label="Clear recently used tools"
+            >
+              <X className="h-3 w-3" />
+            </button>
           </motion.div>
         )}
       </motion.div>
@@ -301,6 +335,15 @@ export function DashboardView() {
               <Card
                 className="relative cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-xl hover:border-primary/30 group h-full"
                 onClick={() => setCurrentView(tool.id)}
+                role="button"
+                tabIndex={0}
+                aria-label={`Open ${tool.title} tool: ${tool.description}`}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    setCurrentView(tool.id)
+                  }
+                }}
               >
                 {/* Gradient overlay on hover */}
                 <div className={`absolute inset-0 bg-gradient-to-br ${tool.gradient} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />

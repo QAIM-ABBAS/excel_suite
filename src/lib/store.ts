@@ -9,6 +9,8 @@ export type ToolView =
   | 'sort'
   | 'filter'
   | 'stats'
+  | 'pivot'
+  | 'replace'
   | 'attendance'
   | 'download-excel'
   | 'download-images'
@@ -61,6 +63,7 @@ interface AppState {
   // Recently visited tools (for "frequently used" feature on dashboard)
   recentTools: ToolView[]
   trackToolVisit: (view: ToolView) => void
+  clearRecentTools: () => void
 
   // In-app notifications panel
   notifications: NotificationItem[]
@@ -105,6 +108,7 @@ export const useAppStore = create<AppState>()(
             ...state.recentTools.filter((t) => t !== view),
           ].slice(0, 6),
         })),
+      clearRecentTools: () => set({ recentTools: [] }),
 
       notifications: [],
       pushNotification: (n) =>

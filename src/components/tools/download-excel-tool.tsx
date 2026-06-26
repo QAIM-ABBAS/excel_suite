@@ -11,6 +11,7 @@ import { DataPreviewDialog } from "@/components/data-preview-dialog"
 import { Download, Loader2, CheckCircle2, ExternalLink, Eye, Shield, FileSpreadsheet, Clock } from "lucide-react"
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
+import { useAppStore } from "@/lib/store"
 
 interface DownloadResult {
   downloadUrl: string
@@ -19,6 +20,7 @@ interface DownloadResult {
 }
 
 export function DownloadExcelTool() {
+  const { incrementActiveTasks, decrementActiveTasks, pushNotification } = useAppStore()
   const [url, setUrl] = useState("")
   const [filename, setFilename] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
@@ -47,6 +49,7 @@ export function DownloadExcelTool() {
     setIsProcessing(true)
     setProgress(10)
     setResult(null)
+    incrementActiveTasks()
 
     try {
       // Simulate progress while downloading
@@ -70,10 +73,18 @@ export function DownloadExcelTool() {
       setProgress(100)
       setResult(data)
       toast.success("File downloaded successfully!")
+      pushNotification({
+        title: "Download complete",
+        description: `${data.filename} (${(data.size / 1024).toFixed(1)} KB)`,
+        type: "success",
+      })
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Download failed")
+      const msg = error instanceof Error ? error.message : "Download failed"
+      toast.error(msg)
+      pushNotification({ title: "Download failed", description: msg, type: "error" })
     } finally {
       setIsProcessing(false)
+      decrementActiveTasks()
       setTimeout(() => setProgress(0), 1000)
     }
   }

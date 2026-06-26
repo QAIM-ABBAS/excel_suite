@@ -14,6 +14,7 @@ import { DataPreviewDialog } from "@/components/data-preview-dialog"
 import { CopyX, Download, CheckCircle2, Loader2, Eye, FileSpreadsheet, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
+import { useAppStore } from "@/lib/store"
 
 interface DuplicatesResult {
   downloadUrl: string
@@ -28,6 +29,7 @@ interface DuplicatesResult {
 }
 
 export function DuplicatesTool() {
+  const { incrementActiveTasks, decrementActiveTasks, pushNotification } = useAppStore()
   const [file, setFile] = useState<File | null>(null)
   const [columns, setColumns] = useState<string[]>([])
   const [selectedColumn, setSelectedColumn] = useState("")
@@ -76,6 +78,7 @@ export function DuplicatesTool() {
 
     setIsProcessing(true)
     setProgress(20)
+    incrementActiveTasks()
 
     try {
       const formData = new FormData()
@@ -98,10 +101,18 @@ export function DuplicatesTool() {
       setProgress(100)
       setResult(data)
       toast.success(`Removed ${data.duplicateRows} duplicate rows!`)
+      pushNotification({
+        title: "Duplicates removed",
+        description: `${data.duplicateRows} of ${data.totalRows} rows removed by "${selectedColumn}"`,
+        type: data.duplicateRows > 0 ? "success" : "info",
+      })
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to remove duplicates")
+      const msg = error instanceof Error ? error.message : "Failed to remove duplicates"
+      toast.error(msg)
+      pushNotification({ title: "Duplicate removal failed", description: msg, type: "error" })
     } finally {
       setIsProcessing(false)
+      decrementActiveTasks()
       setTimeout(() => setProgress(0), 1000)
     }
   }

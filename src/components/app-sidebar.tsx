@@ -19,7 +19,7 @@ import { useSyncExternalStore } from "react"
 import {
   LayoutDashboard, GitMerge, ArrowLeftRight, CopyX,
   UserCheck, Download, ImageDown, Settings, Info,
-  Sun, Moon, FileSpreadsheet, ArrowUpDown, Filter, BarChart3,
+  Sun, Moon, FileSpreadsheet, ArrowUpDown, Filter, BarChart3, Table2, Replace,
 } from "lucide-react"
 
 const mainNav = [
@@ -32,7 +32,9 @@ const toolNav = [
   { id: "duplicates" as ToolView, label: "Remove Duplicates", icon: CopyX },
   { id: "sort" as ToolView, label: "Data Sorter", icon: ArrowUpDown },
   { id: "filter" as ToolView, label: "Data Filter", icon: Filter },
+  { id: "replace" as ToolView, label: "Find & Replace", icon: Replace },
   { id: "stats" as ToolView, label: "Statistics", icon: BarChart3 },
+  { id: "pivot" as ToolView, label: "Pivot / Group-By", icon: Table2 },
   { id: "attendance" as ToolView, label: "Attendance Checker", icon: UserCheck },
   { id: "download-excel" as ToolView, label: "Download Excel", icon: Download },
   { id: "download-images" as ToolView, label: "Download Images", icon: ImageDown },
@@ -62,13 +64,16 @@ export function AppSidebar() {
 
   return (
     <Sidebar>
-      <SidebarHeader className="border-b border-border/50 px-4 py-4">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+      <SidebarHeader className="relative overflow-hidden border-b border-border/50 px-4 py-4">
+        {/* Decorative gradient blob */}
+        <div className="pointer-events-none absolute -top-6 -right-6 h-20 w-20 rounded-full bg-primary/10 blur-2xl" />
+        <div className="relative flex items-center gap-2">
+          <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/70 text-primary-foreground shadow-md">
             <FileSpreadsheet className="h-4 w-4" />
+            <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-background" />
           </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-bold">Excel Suite</span>
+          <div className="flex flex-col leading-tight">
+            <span className="text-sm font-bold tracking-tight">Excel Suite</span>
             <span className="text-[10px] text-muted-foreground">Automation Tools</span>
           </div>
         </div>

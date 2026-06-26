@@ -22,6 +22,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
+import { useAppStore } from "@/lib/store"
 
 interface ColumnStats {
   column: string
@@ -71,6 +72,7 @@ function formatNumber(n: number | undefined): string {
 }
 
 export function StatsTool() {
+  const { incrementActiveTasks, decrementActiveTasks, pushNotification } = useAppStore()
   const [file, setFile] = useState<File | null>(null)
   const [isLoadingColumns, setIsLoadingColumns] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -103,6 +105,7 @@ export function StatsTool() {
     }
     setIsProcessing(true)
     setProgress(20)
+    incrementActiveTasks()
     try {
       const formData = new FormData()
       formData.append("file", file)
@@ -115,10 +118,18 @@ export function StatsTool() {
       setProgress(100)
       setResult(data)
       toast.success(`Analyzed ${data.totalColumns} columns across ${data.totalRows} rows`)
+      pushNotification({
+        title: "Statistics computed",
+        description: `${data.totalRows} rows × ${data.totalColumns} columns analyzed`,
+        type: "success",
+      })
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to analyze data")
+      const msg = error instanceof Error ? error.message : "Failed to analyze data"
+      toast.error(msg)
+      pushNotification({ title: "Statistics failed", description: msg, type: "error" })
     } finally {
       setIsProcessing(false)
+      decrementActiveTasks()
       setTimeout(() => setProgress(0), 1000)
     }
   }

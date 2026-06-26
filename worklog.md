@@ -283,3 +283,164 @@ Stage Summary:
 - Comprehensive styling improvements: animated hero blobs, gradient patterns, shimmer skeletons, pulse-glow CTAs, nav underlines, reduced-motion accessibility, spring-physics card hover.
 - All 11 API routes return 200, lint passes, no runtime errors.
 - Application is production-ready with enhanced UX and 2 new analytical tools.
+
+---
+Task ID: 13
+Agent: enhancement-agent-4
+Task: Round 4 — QA, Pivot/Group-By tool (10th), sticky footer, keyboard shortcuts, file-history search, glassmorphic sidebar
+
+Work Log:
+
+## Project Status Assessment
+- Reviewed prior 12 worklog entries — project stable with 9 tools, notifications panel, recently-used tracking, command palette.
+- Ran agent-browser QA on dashboard, all tool views, settings, about, theme toggle, command palette — all rendering correctly.
+- Found one gap: **no global footer** existed. UI rules require a sticky footer that stays at viewport bottom when content is short and pushes down naturally when content overflows.
+
+## New Tool #10: Pivot / Group-By Aggregator
+- Created /api/tools/pivot/route.ts: groups rows by one or more columns and aggregates value columns using 8 functions: sum, avg, count, count_distinct, min, max, first, last. Supports multiple group-by columns (composite key) and multiple aggregations in one pass. Auto-generates output column names like `<column>_<function>` if no alias provided. Validates column existence. Persists output as `<basename>_pivot_<8char-uuid>.xlsx`.
+- Created src/components/tools/pivot-tool.tsx: full UI with file dropzone, group-by toggle chips (clickable column badges with teal active state), dynamic aggregation builder (add/remove rows with column / function / output-name inputs), AND-style preview of original data, progress bar, result card with source-rows / output-groups / group-by columns stats, pivot preview DataTable (searchable), Download + Preview Full Data buttons.
+- Verified end-to-end via curl: POST /api/tools/pivot with groupBy=["name"] and aggregations=[{column:"id",function:"sum"},{column:"email",function:"count"}] returned 4 source rows → 4 groups (Alice, Bob, Jane, John), each with correct id_sum and email_count=1. Excel report generated and saved.
+
+## New Feature: Sticky Global Footer
+- Created src/components/app-footer.tsx: footer with three sections — left (brand + version + copyright), center (Dashboard/Settings/About nav buttons), right (Shortcuts button with `?` kbd, Open Source, "Made with ♥ in dark/light mode"). Backdrop-blur + subtle top border.
+- Updated src/app/page.tsx: wrapped SidebarInset with `flex flex-col min-h-svh`, main content given `flex-1`, footer appended after main with `mt-auto`-like behavior. Now the footer always sits at the bottom of the viewport when content is short and pushes down naturally when content overflows.
+
+## New Feature: Keyboard Shortcuts Help Dialog
+- Created src/components/keyboard-shortcuts-help.tsx: dialog component + `useKeyboardShortcutsHelp()` hook. Dialog shows shortcuts grouped by category (Global, Navigation, Command Palette) with `<kbd>` styled keys. Hook listens for `?` key (only when not typing in an input) to toggle the dialog.
+- Created src/lib/use-global-shortcuts.ts: implements two-key sequence shortcuts (g d → Dashboard, g s → Settings, g a → About, g m → Merge, g c → Convert, g f → Filter, g t → staTs, g p → Pivot). Uses 1-second window after `g` press. Ignores when typing in inputs or when modifiers held.
+- Wired both into page.tsx. Footer has a "Shortcuts ?" button that also opens the dialog.
+
+## New Feature: File History Search + Tool Filter
+- Enhanced src/components/settings-view.tsx File History tab:
+  - Added search input with leading Search icon and clear (X) button when text present.
+  - Added "All tools" filter dropdown populated from the set of tools that have records.
+  - Added `filteredHistory` useMemo that filters by both search query (matches originalName + filename) and tool filter.
+  - Empty-search-results state with "Clear filters" button.
+  - All existing features (Clear All, Refresh, per-record delete, download links) preserved.
+
+## Mandatory Styling Improvements
+- Glassmorphic sidebar header: added decorative gradient blob (bg-primary/10 blur-2xl) in top-right, gradient logo container (from-primary to-primary/70) with shadow-md, small emerald "online" dot indicator on the logo, tighter leading on brand text.
+- Polished footer with three-column layout, kbd-styled shortcut hints, theme-aware "made with ♥ in dark/light mode" text.
+- Tool color maps in dashboard, settings, command palette, about all extended with pivot (teal theme).
+
+## Notification + Active-Task Wiring
+- Wired `pushNotification` and `incrementActiveTasks`/`decrementActiveTasks` into three representative tools: merge-tool, stats-tool, pivot-tool. Each now:
+  - Increments activeTasks when starting an operation (so the header pill appears with a spinner).
+  - Pushes a success/warning notification on completion with a meaningful description.
+  - Pushes an error notification on failure.
+  - Decrements activeTasks in the finally block.
+
+## Verification
+- Lint: `bun run lint` — zero errors.
+- Dev server: all 200 responses, no runtime errors, no module-not-found errors.
+- agent-browser verified:
+  - Sidebar shows 10 tools including new "Pivot / Group-By" entry.
+  - Dashboard hero shows "10 powerful automation tools", Tools Available: 10, and Pivot card with "New" tag in the grid.
+  - Pivot tool renders: dropzone, group-by chips, aggregation builder, Aggregate button (disabled until valid).
+  - Footer renders with brand, v2.1.0, copyright, Shortcuts button, "Made with ♥".
+  - Pressing `?` opens the Keyboard Shortcuts dialog with grouped shortcut list.
+  - Pressing `g` then `p` navigates to Pivot tool (verified h1 changed to "Pivot / Group-By").
+  - Settings → File History tab shows search input + All-tools dropdown + Clear All + records with Filter/Stats/Pivot badges.
+- curl verified pivot API end-to-end with correct aggregation math.
+
+Stage Summary:
+- Project expanded from 9 → 10 tools (added Pivot / Group-By Aggregator).
+- Sticky global footer now satisfies UI rule (was missing before).
+- Keyboard shortcuts: `?` opens help, `g+key` navigates to views, all discoverable via the help dialog.
+- File History supports search + per-tool filter.
+- Three tools (merge, stats, pivot) now push notifications + track active tasks end-to-end.
+- Glassmorphic sidebar header with online-indicator dot.
+- Lint passes, dev server healthy, all features verified end-to-end.
+
+---
+Task ID: 14
+Agent: enhancement-agent-5
+Task: Round 5 — QA, Find & Replace tool (11th), JSON export, clear-recent-tools, notification wiring for 7 remaining tools, styling polish
+
+Work Log:
+
+## Project Status Assessment
+- Reviewed prior 13 worklog entries — project stable with 10 tools, sticky footer, keyboard shortcuts, file-history search, glassmorphic sidebar.
+- Ran agent-browser QA on dashboard, all tool views, settings, about — all rendering correctly with 200 responses, no runtime errors.
+- Verified sticky footer behavior: on Download Excel tool (short content) footer sits at viewport bottom (top=524 of 577 viewport); on dashboard (long content) footer is naturally pushed below fold (top=2138).
+- Identified gap: 7 of 10 tools (convert, duplicates, sort, filter, attendance, download-excel, download-images) were not yet wired to the notifications panel or active-task counter — only merge, stats, pivot were wired in the previous round.
+
+## Notification + Active-Task Wiring (7 tools)
+- Wired `pushNotification` + `incrementActiveTasks`/`decrementActiveTasks` into all 7 remaining tool components:
+  - convert-tool: success on conversion, error on failure
+  - duplicates-tool: success/warning based on whether any duplicates were found
+  - sort-tool: success with sort column + direction
+  - filter-tool: success/warning based on whether any rows matched (warning if 0 matches)
+  - attendance-tool: success if ≥75% attendance, warning if below 75%
+  - download-excel-tool: success with filename + size
+  - download-images-tool: success if all images succeeded, warning if any failures
+- All tools now consistently: increment activeTasks at start, push notification on completion (success/warning/error), decrement activeTasks in finally block.
+- Header "N running" pill now accurately reflects any in-flight tool operation across all 10 tools.
+
+## New Tool #11: Find & Replace
+- Created /api/tools/replace/route.ts: searches for text across cells and replaces with new text. Features:
+  - 4 match modes: contains, exact, startsWith, endsWith (auto-disabled when regex mode is on)
+  - Optional regex mode (validates pattern syntax before processing)
+  - Case-sensitive toggle
+  - Per-column scope control (empty selection = all columns)
+  - Returns: totalMatches, cellsChanged, rowsAffected, scopedColumns, and up to 50 change previews with row/column/before/after
+  - Persists output as `<basename>_replaced_<8char-uuid>.xlsx` and records to FileRecord table.
+- Created src/components/tools/replace-tool.tsx: full UI with:
+  - File dropzone, find/replace inputs (monospace font)
+  - Match mode Select dropdown with hint text
+  - Case-sensitive + Regex toggles with icons (CaseSensitive, Regex)
+  - Column scope toggle chips (fuchsia active state, "All columns" badge when none selected)
+  - Original data preview DataTable
+  - Progress bar, result card with 4 stat boxes (matches/cells/rows/total)
+  - Mode/scope/case badges row
+  - Change preview table with sticky header showing before (rose) → after (emerald) for each changed cell
+  - Empty-match state with helpful message
+  - Download button
+- Verified end-to-end via curl: POST /api/tools/replace with find="john", replace="JOHN", caseSensitive=false on duplicates_cleaned_32002878.xlsx found 2 matches in row 1 (name="John"→"JOHN", email="john@test.com"→"JOHN@test.com"), correct stats returned.
+
+## New Feature: Export File History as JSON
+- Added `handleExportJson` function in settings-view.tsx: fetches all records from /api/tools/history, creates a Blob with JSON.stringify (pretty-printed), triggers download as `excel-suite-history-YYYY-MM-DD.json`.
+- Added "Export JSON" button in File History tab header alongside Clear All and Refresh, with Download icon and tooltip.
+
+## New Feature: Clear Recently-Used Tools
+- Extended Zustand store with `clearRecentTools: () => set({ recentTools: [] })` action.
+- Added small X button at the end of the "Recently used:" chips row on the dashboard, with proper aria-label="Clear recently used tools" and tooltip.
+
+## Mandatory Styling Improvements
+- Enhanced empty states in Settings → File History tab:
+  - "No files processed yet" state: rounded-lg dashed border, decorative blurred blob, large icon container (h-14 w-14 rounded-2xl), helpful copy mentioning the number of tools available.
+  - "No records match your search" state: amber-themed blob and icon container, "Clear filters" button.
+  - "No errors recorded" state in Error Logs: emerald-themed celebratory state with dashed emerald border, bg-emerald-500/5.
+  - All three animate in with motion.div scale-in.
+- Accessibility improvements on dashboard tool cards:
+  - Added `role="button"`, `tabIndex={0}`, `aria-label="Open <tool> tool: <description>"`, and `onKeyDown` handler (Enter/Space activates) so cards are keyboard-navigable and screen-reader friendly.
+  - Added `aria-label="Clear recently used tools"` to the new X button.
+- Polished About page footer card: more accurate tech stack ("Next.js 16, TypeScript, Tailwind CSS, Prisma, and shadcn/ui"), Github icon added, "Open architecture" tagline.
+- Updated version numbers consistently: about page v2.2.0, app-footer v2.2.0, tools count "11" everywhere (dashboard hero, Tools Available stat, about page stats grid, sidebar).
+
+## Store Updates
+- Added `'replace'` to ToolView union type.
+- Added `clearRecentTools` action.
+
+## Verification
+- Lint: `bun run lint` — zero errors, zero warnings.
+- Dev server: all 200 responses, clean compiles, no runtime errors.
+- agent-browser verified:
+  - Sidebar shows 11 tools including new "Find & Replace" entry.
+  - Dashboard hero shows "11 powerful automation tools", Tools Available: 11.
+  - Find & Replace tool renders with dropzone, find/replace inputs, match mode, case/regex toggles, column scope chips.
+  - Footer shows v2.2.0, copyright, shortcuts button, "Made with ♥ in dark mode".
+  - g+p keyboard shortcut still navigates to Pivot tool.
+  - aria-label="Clear recently used tools" present on dashboard.
+- curl verified replace API end-to-end with correct match/replace math.
+
+Stage Summary:
+- Project expanded from 10 → 11 tools (added Find & Replace).
+- All 10 tools now consistently push notifications + track active tasks (was only 3 before).
+- File History supports JSON export for backup.
+- Dashboard "Recently used" chips now have a clear button.
+- Empty states across settings are visually polished with themed colors and motion.
+- Dashboard tool cards are keyboard-navigable with proper ARIA labels.
+- About page tech-stack card updated with accurate info.
+- Version bumped to v2.2.0 consistently across about page and footer.
+- Lint passes, dev server healthy, all features verified end-to-end.

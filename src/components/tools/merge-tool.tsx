@@ -14,6 +14,7 @@ import { DataPreviewDialog } from "@/components/data-preview-dialog"
 import { GitMerge, Download, Trash2, AlertTriangle, CheckCircle2, Loader2, Eye, FileSpreadsheet } from "lucide-react"
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
+import { useAppStore } from "@/lib/store"
 
 interface MergeResult {
   downloadUrl: string
@@ -26,6 +27,7 @@ interface MergeResult {
 }
 
 export function MergeTool() {
+  const { incrementActiveTasks, decrementActiveTasks, pushNotification } = useAppStore()
   const [files, setFiles] = useState<File[]>([])
   const [outputFormat, setOutputFormat] = useState("xlsx")
   const [outputFilename, setOutputFilename] = useState("merged")
@@ -57,6 +59,7 @@ export function MergeTool() {
 
     setIsProcessing(true)
     setProgress(10)
+    incrementActiveTasks()
 
     try {
       const formData = new FormData()
@@ -82,14 +85,22 @@ export function MergeTool() {
       setProgress(100)
       setResult(data)
       toast.success(`Merged ${files.length} files successfully! ${data.totalRows} total rows.`)
+      pushNotification({
+        title: "Merge complete",
+        description: `${files.length} files → ${data.totalRows} rows${data.hasMismatch ? " (with header mismatches)" : ""}`,
+        type: data.hasMismatch ? "warning" : "success",
+      })
 
       if (data.hasMismatch) {
         toast.warning("Headers differ between files - data was merged using all columns")
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Merge failed")
+      const msg = error instanceof Error ? error.message : "Merge failed"
+      toast.error(msg)
+      pushNotification({ title: "Merge failed", description: msg, type: "error" })
     } finally {
       setIsProcessing(false)
+      decrementActiveTasks()
       setTimeout(() => setProgress(0), 1000)
     }
   }

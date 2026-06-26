@@ -6,9 +6,11 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useTheme } from "next-themes"
-import { FileSpreadsheet, Clock, AlertTriangle, Trash2, Download, Loader2 } from "lucide-react"
-import { useSyncExternalStore, useEffect, useState } from "react"
+import { FileSpreadsheet, Clock, AlertTriangle, Trash2, Download, Loader2, Search, X } from "lucide-react"
+import { useSyncExternalStore, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
 
@@ -37,7 +39,9 @@ const toolLabelMap: Record<string, string> = {
   duplicates: "Duplicates",
   sort: "Sort",
   filter: "Filter",
+  replace: "Replace",
   stats: "Stats",
+  pivot: "Pivot",
   attendance: "Attendance",
   "download-excel": "Download",
   "download-images": "Images",
@@ -49,7 +53,9 @@ const toolColorMap: Record<string, string> = {
   duplicates: "bg-rose-500/10 text-rose-500",
   sort: "bg-cyan-500/10 text-cyan-500",
   filter: "bg-orange-500/10 text-orange-500",
+  replace: "bg-fuchsia-500/10 text-fuchsia-500",
   stats: "bg-indigo-500/10 text-indigo-500",
+  pivot: "bg-teal-500/10 text-teal-500",
   attendance: "bg-sky-500/10 text-sky-500",
   "download-excel": "bg-violet-500/10 text-violet-500",
   "download-images": "bg-pink-500/10 text-pink-500",
@@ -68,6 +74,8 @@ export function SettingsView() {
   const [loadingHistory, setLoadingHistory] = useState(true)
   const [loadingErrors, setLoadingErrors] = useState(true)
   const [activeTab, setActiveTab] = useState<"appearance" | "history" | "errors">("appearance")
+  const [historySearch, setHistorySearch] = useState("")
+  const [historyToolFilter, setHistoryToolFilter] = useState<string>("all")
 
   useEffect(() => {
     fetchFileHistory()
@@ -110,6 +118,16 @@ export function SettingsView() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
 
+  // Filtered + searched file history (memoized)
+  const filteredHistory = useMemo(() => {
+    const q = historySearch.trim().toLowerCase()
+    return fileHistory.filter((f) => {
+      if (historyToolFilter !== "all" && f.tool !== historyToolFilter) return false
+      if (q && !f.originalName.toLowerCase().includes(q) && !f.filename.toLowerCase().includes(q)) return false
+      return true
+    })
+  }, [fileHistory, historySearch, historyToolFilter])
+
   const handleDeleteRecord = async (id: string) => {
     try {
       const res = await fetch(`/api/tools/history?id=${encodeURIComponent(id)}`, { method: "DELETE" })
@@ -139,6 +157,28 @@ export function SettingsView() {
       }
     } catch {
       toast.error("Failed to clear history")
+    }
+  }
+
+  const handleExportJson = async () => {
+    try {
+      const res = await fetch("/api/tools/history")
+      const data = await res.json()
+      if (!data.success) throw new Error("Failed to fetch records")
+      const blob = new Blob([JSON.stringify(data.records, null, 2)], {
+        type: "application/json",
+      })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `excel-suite-history-${new Date().toISOString().slice(0, 10)}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      toast.success(`Exported ${data.records.length} records as JSON`)
+    } catch {
+      toast.error("Failed to export history")
     }
   }
 
@@ -248,12 +288,18 @@ export function SettingsView() {
                         : "Recent file processing activity"}
                     </CardDescription>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     {fileHistory.length > 0 && (
-                      <Button variant="outline" size="sm" onClick={handleClearAll} className="text-destructive hover:text-destructive">
-                        <Trash2 className="h-3.5 w-3.5 mr-1" />
-                        Clear All
-                      </Button>
+                      <>
+                        <Button variant="outline" size="sm" onClick={handleExportJson} title="Download all records as JSON backup">
+                          <Download className="h-3.5 w-3.5 mr-1" />
+                          Export JSON
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={handleClearAll} className="text-destructive hover:text-destructive">
+                          <Trash2 className="h-3.5 w-3.5 mr-1" />
+                          Clear All
+                        </Button>
+                      </>
                     )}
                     <Button variant="outline" size="sm" onClick={fetchFileHistory}>
                       <Clock className="h-3.5 w-3.5 mr-1" />
@@ -263,18 +309,91 @@ export function SettingsView() {
                 </div>
               </CardHeader>
               <CardContent>
+                {/* Search + tool filter */}
+                {fileHistory.length > 0 && (
+                  <div className="flex flex-col sm:flex-row gap-2 mb-3">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input
+                        placeholder="Search by filename..."
+                        value={historySearch}
+                        onChange={(e) => setHistorySearch(e.target.value)}
+                        className="h-8 pl-8 pr-8 text-xs"
+                      />
+                      {historySearch && (
+                        <button
+                          onClick={() => setHistorySearch("")}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          title="Clear search"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    <Select value={historyToolFilter} onValueChange={setHistoryToolFilter}>
+                      <SelectTrigger className="h-8 w-full sm:w-40 text-xs">
+                        <SelectValue placeholder="All tools" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All tools</SelectItem>
+                        {Array.from(new Set(fileHistory.map((f) => f.tool))).map((t) => (
+                          <SelectItem key={t} value={t}>
+                            {toolLabelMap[t] || t}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 {loadingHistory ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
                 ) : fileHistory.length === 0 ? (
-                  <div className="text-center py-8">
-                    <FileSpreadsheet className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">No files processed yet</p>
-                  </div>
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="relative overflow-hidden text-center py-12 px-4 rounded-lg border border-dashed border-border/60"
+                  >
+                    <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 h-16 w-16 rounded-full bg-primary/5 blur-2xl" />
+                    <div className="relative inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-muted/60 mb-3">
+                      <FileSpreadsheet className="h-7 w-7 text-muted-foreground/70" />
+                    </div>
+                    <p className="text-sm font-medium">No files processed yet</p>
+                    <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
+                      Run any of the {Object.keys(toolLabelMap).length} tools and your processing history will appear here.
+                    </p>
+                  </motion.div>
+                ) : filteredHistory.length === 0 ? (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="relative overflow-hidden text-center py-12 px-4 rounded-lg border border-dashed border-border/60"
+                  >
+                    <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 h-16 w-16 rounded-full bg-amber-500/10 blur-2xl" />
+                    <div className="relative inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 mb-3">
+                      <Search className="h-7 w-7 text-amber-500/70" />
+                    </div>
+                    <p className="text-sm font-medium">No records match your search</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Try a different filename or tool filter.
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3 h-7 text-xs"
+                      onClick={() => {
+                        setHistorySearch("")
+                        setHistoryToolFilter("all")
+                      }}
+                    >
+                      Clear filters
+                    </Button>
+                  </motion.div>
                 ) : (
                   <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-thin">
-                    {fileHistory.map((file) => (
+                    {filteredHistory.map((file) => (
                       <div
                         key={file.id}
                         className="flex items-center gap-3 rounded-lg border border-border/50 p-3 hover:bg-muted/30 transition-colors group"
@@ -350,11 +469,18 @@ export function SettingsView() {
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
                 ) : errorLogs.length === 0 ? (
-                  <div className="text-center py-8">
-                    <AlertTriangle className="h-8 w-8 text-emerald-500 mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">No errors recorded</p>
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="relative overflow-hidden text-center py-12 px-4 rounded-lg border border-dashed border-emerald-500/30 bg-emerald-500/5"
+                  >
+                    <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 h-16 w-16 rounded-full bg-emerald-500/10 blur-2xl" />
+                    <div className="relative inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10 mb-3">
+                      <AlertTriangle className="h-7 w-7 text-emerald-500" />
+                    </div>
+                    <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">No errors recorded</p>
                     <p className="text-xs text-muted-foreground mt-1">Everything is running smoothly!</p>
-                  </div>
+                  </motion.div>
                 ) : (
                   <div className="space-y-2 max-h-96 overflow-y-auto">
                     {errorLogs.map((log) => (

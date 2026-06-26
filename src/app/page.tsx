@@ -4,6 +4,9 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/s
 import { AppSidebar } from "@/components/app-sidebar"
 import { CommandPalette } from "@/components/command-palette"
 import { NotificationsPopover } from "@/components/notifications-popover"
+import { AppFooter } from "@/components/app-footer"
+import { KeyboardShortcutsHelp, useKeyboardShortcutsHelp } from "@/components/keyboard-shortcuts-help"
+import { useGlobalShortcuts } from "@/lib/use-global-shortcuts"
 import { useAppStore } from "@/lib/store"
 import { DashboardView } from "@/components/dashboard-view"
 import { MergeTool } from "@/components/tools/merge-tool"
@@ -12,13 +15,15 @@ import { DuplicatesTool } from "@/components/tools/duplicates-tool"
 import { SortTool } from "@/components/tools/sort-tool"
 import { FilterTool } from "@/components/tools/filter-tool"
 import { StatsTool } from "@/components/tools/stats-tool"
+import { PivotTool } from "@/components/tools/pivot-tool"
+import { ReplaceTool } from "@/components/tools/replace-tool"
 import { AttendanceTool } from "@/components/tools/attendance-tool"
 import { DownloadExcelTool } from "@/components/tools/download-excel-tool"
 import { DownloadImagesTool } from "@/components/tools/download-images-tool"
 import { SettingsView } from "@/components/settings-view"
 import { AboutView } from "@/components/about-view"
 import { Separator } from "@/components/ui/separator"
-import { GitMerge, ArrowLeftRight, CopyX, UserCheck, Download, ImageDown, LayoutDashboard, Settings, Info, ArrowUpDown, Filter, BarChart3, Loader2 } from "lucide-react"
+import { GitMerge, ArrowLeftRight, CopyX, UserCheck, Download, ImageDown, LayoutDashboard, Settings, Info, ArrowUpDown, Filter, BarChart3, Table2, Loader2, Replace } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import type { ToolView } from "@/lib/store"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -31,6 +36,8 @@ const viewMeta: Record<ToolView, { title: string; description: string; icon: typ
   sort: { title: "Data Sorter", description: "Sort data by column", icon: ArrowUpDown },
   filter: { title: "Data Filter", description: "Filter rows by conditions", icon: Filter },
   stats: { title: "Statistics & Summary", description: "Analyze column statistics", icon: BarChart3 },
+  pivot: { title: "Pivot / Group-By", description: "Group rows and aggregate values", icon: Table2 },
+  replace: { title: "Find & Replace", description: "Search and replace text across cells", icon: Replace },
   attendance: { title: "Attendance Checker", description: "Check student attendance", icon: UserCheck },
   "download-excel": { title: "Download Excel from URL", description: "Fetch files from the web", icon: Download },
   "download-images": { title: "Download Images into Excel", description: "Embed images into spreadsheets", icon: ImageDown },
@@ -41,6 +48,10 @@ const viewMeta: Record<ToolView, { title: string; description: string; icon: typ
 export default function Home() {
   const { currentView, activeTasks } = useAppStore()
   const meta = viewMeta[currentView] || viewMeta.dashboard
+  const [shortcutsOpen, setShortcutsOpen] = useKeyboardShortcutsHelp()
+
+  // Wire g+key navigation shortcuts
+  useGlobalShortcuts()
 
   const renderView = () => {
     switch (currentView) {
@@ -51,6 +62,8 @@ export default function Home() {
       case "sort": return <SortTool />
       case "filter": return <FilterTool />
       case "stats": return <StatsTool />
+      case "pivot": return <PivotTool />
+      case "replace": return <ReplaceTool />
       case "attendance": return <AttendanceTool />
       case "download-excel": return <DownloadExcelTool />
       case "download-images": return <DownloadImagesTool />
@@ -63,7 +76,7 @@ export default function Home() {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>
+      <SidebarInset className="flex flex-col min-h-svh">
         <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border/50 bg-background/80 backdrop-blur-md px-4 lg:px-6">
           <SidebarTrigger />
           <Separator orientation="vertical" className="h-5" />
@@ -96,7 +109,8 @@ export default function Home() {
             <NotificationsPopover />
           </div>
         </header>
-        <div className="flex-1 p-4 lg:p-6">
+
+        <main className="flex-1 p-4 lg:p-6">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentView}
@@ -108,9 +122,13 @@ export default function Home() {
               {renderView()}
             </motion.div>
           </AnimatePresence>
-        </div>
+        </main>
+
+        <AppFooter onOpenShortcuts={() => setShortcutsOpen(true)} />
       </SidebarInset>
+
       <CommandPalette />
+      <KeyboardShortcutsHelp open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
     </SidebarProvider>
   )
 }
