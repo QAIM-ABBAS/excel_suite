@@ -3,21 +3,25 @@
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { CommandPalette } from "@/components/command-palette"
+import { NotificationsPopover } from "@/components/notifications-popover"
 import { useAppStore } from "@/lib/store"
 import { DashboardView } from "@/components/dashboard-view"
 import { MergeTool } from "@/components/tools/merge-tool"
 import { ConvertTool } from "@/components/tools/convert-tool"
 import { DuplicatesTool } from "@/components/tools/duplicates-tool"
 import { SortTool } from "@/components/tools/sort-tool"
+import { FilterTool } from "@/components/tools/filter-tool"
+import { StatsTool } from "@/components/tools/stats-tool"
 import { AttendanceTool } from "@/components/tools/attendance-tool"
 import { DownloadExcelTool } from "@/components/tools/download-excel-tool"
 import { DownloadImagesTool } from "@/components/tools/download-images-tool"
 import { SettingsView } from "@/components/settings-view"
 import { AboutView } from "@/components/about-view"
 import { Separator } from "@/components/ui/separator"
-import { GitMerge, ArrowLeftRight, CopyX, UserCheck, Download, ImageDown, LayoutDashboard, Settings, Info, ArrowUpDown } from "lucide-react"
+import { GitMerge, ArrowLeftRight, CopyX, UserCheck, Download, ImageDown, LayoutDashboard, Settings, Info, ArrowUpDown, Filter, BarChart3, Loader2 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import type { ToolView } from "@/lib/store"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 const viewMeta: Record<ToolView, { title: string; description: string; icon: typeof LayoutDashboard }> = {
   dashboard: { title: "Dashboard", description: "Overview and quick access to tools", icon: LayoutDashboard },
@@ -25,6 +29,8 @@ const viewMeta: Record<ToolView, { title: string; description: string; icon: typ
   convert: { title: "CSV ⇄ Excel Converter", description: "Convert between formats", icon: ArrowLeftRight },
   duplicates: { title: "Remove Duplicates", description: "Clean duplicate rows", icon: CopyX },
   sort: { title: "Data Sorter", description: "Sort data by column", icon: ArrowUpDown },
+  filter: { title: "Data Filter", description: "Filter rows by conditions", icon: Filter },
+  stats: { title: "Statistics & Summary", description: "Analyze column statistics", icon: BarChart3 },
   attendance: { title: "Attendance Checker", description: "Check student attendance", icon: UserCheck },
   "download-excel": { title: "Download Excel from URL", description: "Fetch files from the web", icon: Download },
   "download-images": { title: "Download Images into Excel", description: "Embed images into spreadsheets", icon: ImageDown },
@@ -33,7 +39,7 @@ const viewMeta: Record<ToolView, { title: string; description: string; icon: typ
 }
 
 export default function Home() {
-  const { currentView } = useAppStore()
+  const { currentView, activeTasks } = useAppStore()
   const meta = viewMeta[currentView] || viewMeta.dashboard
 
   const renderView = () => {
@@ -43,6 +49,8 @@ export default function Home() {
       case "convert": return <ConvertTool />
       case "duplicates": return <DuplicatesTool />
       case "sort": return <SortTool />
+      case "filter": return <FilterTool />
+      case "stats": return <StatsTool />
       case "attendance": return <AttendanceTool />
       case "download-excel": return <DownloadExcelTool />
       case "download-images": return <DownloadImagesTool />
@@ -66,6 +74,26 @@ export default function Home() {
               <Separator orientation="vertical" className="hidden sm:block h-4" />
               <span className="hidden sm:block text-xs text-muted-foreground truncate">{meta.description}</span>
             </div>
+          </div>
+
+          <div className="ml-auto flex items-center gap-2">
+            {/* Active task indicator */}
+            {activeTasks > 0 && (
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1.5 rounded-full border border-border/50 bg-muted/40 px-2.5 py-1 text-xs">
+                      <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                      <span className="tabular-nums font-medium">{activeTasks}</span>
+                      <span className="hidden sm:inline text-muted-foreground">running</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>{activeTasks} background task{activeTasks === 1 ? "" : "s"} in progress</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+
+            <NotificationsPopover />
           </div>
         </header>
         <div className="flex-1 p-4 lg:p-6">

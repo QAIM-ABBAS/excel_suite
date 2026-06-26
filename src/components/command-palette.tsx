@@ -10,7 +10,7 @@ import { useAppStore, type ToolView } from "@/lib/store"
 import {
   LayoutDashboard, GitMerge, ArrowLeftRight, CopyX,
   UserCheck, Download, ImageDown, Settings, Info,
-  Search, CornerDownLeft, ArrowUpDown
+  Search, CornerDownLeft, ArrowUpDown, Filter, BarChart3
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -29,6 +29,8 @@ const commands: CommandItem[] = [
   { id: "convert", label: "CSV ⇄ Excel", description: "Convert between CSV and Excel", icon: ArrowLeftRight, keywords: ["transform", "csv", "xlsx"] },
   { id: "duplicates", label: "Remove Duplicates", description: "Delete duplicate rows", icon: CopyX, keywords: ["dedupe", "unique", "clean"] },
   { id: "sort", label: "Data Sorter", description: "Sort data by any column", icon: ArrowUpDown, keywords: ["order", "arrange", "ascending", "descending"] },
+  { id: "filter", label: "Data Filter", description: "Filter rows by conditions", icon: Filter, keywords: ["where", "query", "match", "condition", "and", "or"] },
+  { id: "stats", label: "Statistics & Summary", description: "Compute column statistics", icon: BarChart3, keywords: ["summary", "sum", "average", "min", "max", "describe", "analyze"] },
   { id: "attendance", label: "Attendance Checker", description: "Check student attendance", icon: UserCheck, keywords: ["student", "class", "present"] },
   { id: "download-excel", label: "Download Excel from URL", description: "Download files from the web", icon: Download, keywords: ["url", "fetch", "remote"] },
   { id: "download-images", label: "Download Images", description: "Embed images into Excel", icon: ImageDown, keywords: ["pictures", "photos", "embed"] },

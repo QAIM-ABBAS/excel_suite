@@ -19,7 +19,7 @@ import { useSyncExternalStore } from "react"
 import {
   LayoutDashboard, GitMerge, ArrowLeftRight, CopyX,
   UserCheck, Download, ImageDown, Settings, Info,
-  Sun, Moon, FileSpreadsheet, ArrowUpDown
+  Sun, Moon, FileSpreadsheet, ArrowUpDown, Filter, BarChart3,
 } from "lucide-react"
 
 const mainNav = [
@@ -31,6 +31,8 @@ const toolNav = [
   { id: "convert" as ToolView, label: "CSV ⇄ Excel", icon: ArrowLeftRight },
   { id: "duplicates" as ToolView, label: "Remove Duplicates", icon: CopyX },
   { id: "sort" as ToolView, label: "Data Sorter", icon: ArrowUpDown },
+  { id: "filter" as ToolView, label: "Data Filter", icon: Filter },
+  { id: "stats" as ToolView, label: "Statistics", icon: BarChart3 },
   { id: "attendance" as ToolView, label: "Attendance Checker", icon: UserCheck },
   { id: "download-excel" as ToolView, label: "Download Excel", icon: Download },
   { id: "download-images" as ToolView, label: "Download Images", icon: ImageDown },

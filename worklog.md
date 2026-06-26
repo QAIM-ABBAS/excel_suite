@@ -208,3 +208,78 @@ Stage Summary:
 - File History supports bulk clear-all and per-record delete
 - Global CSS enhanced with custom scrollbars, focus states, glassmorphism, and selection styling
 - Lint passes, dev server healthy, all features verified end-to-end
+
+---
+Task ID: 12
+Agent: enhancement-agent-3
+Task: QA testing via agent-browser, bug fixes, 2 new tools (Data Filter + Statistics), notifications panel, recently-used tracking, styling improvements
+
+Work Log:
+
+## Project Status Assessment
+- Reviewed /home/z/my-project/worklog.md - 11 prior task sections, project is feature-complete with 7 tools, sidebar nav, dashboard, settings, about page.
+- Ran agent-browser QA on dashboard, all 7 tool views, settings, about, theme toggle, command palette (Ctrl+K) — all render correctly with 200 responses, no runtime errors in dev.log.
+- Found one minor bug: FileDropzone used a hardcoded `id="file-input"` for its hidden input. If two dropzones ever mount at once (e.g. in a future multi-step wizard), the second dropzone's click would target the first input. Fixed by switching to React's `useId()` hook for a stable, unique input id per dropzone instance.
+
+## Bug Fix
+- src/components/file-dropzone.tsx: replaced hardcoded `id="file-input"` with `useId()`-generated unique id, and updated both the click handler and `<input id>` reference. No more id-collision risk when multiple dropzones coexist.
+
+## New Tool #1: Data Filter (8th tool)
+- Created /api/tools/filter/route.ts: filters rows by one or more conditions joined with AND/OR logic. Supports 12 operators: equals, not_equals, contains, not_contains, starts_with, ends_with, greater_than, less_than, greater_or_equal, less_or_equal, is_empty, is_not_empty. Numeric-aware comparison (falls back to string compare when values aren't numeric). Validates that referenced columns exist. Persists output as `<basename>_filtered_<8-char-uuid>.xlsx` and records to FileRecord table.
+- Created src/components/tools/filter-tool.tsx: full UI with file dropzone, dynamic condition builder (add/remove rows), per-condition column selector / operator selector / value input, AND/OR radio toggle, original data preview, progress bar, result card showing total/matched/removed counts, filtered preview DataTable, and Download + Preview Full Data buttons. Operators that don't need a value (is_empty / is_not_empty) automatically disable the value input.
+- Verified end-to-end via curl: POST /api/tools/filter with `conditions=[{column:"name",operator:"contains",value:"a"}]` returned 4 total rows → 2 matched (Jane, Alice) → 2 removed. Correct.
+
+## New Tool #2: Statistics & Summary (9th tool)
+- Created /api/tools/stats/route.ts: computes per-column descriptive statistics. For each column reports: type (numeric/text/mixed/empty), filled count, distinct count, missing count. For numeric/mixed columns: sum, avg, min, max, median, stdDev. For text/mixed columns: min/max length. Top 5 most frequent values with counts and percentages. Optionally generates a 2-sheet Excel report (Summary + Top Values) and returns a download URL.
+- Created src/components/tools/stats-tool.tsx: full UI with file dropzone, file info card showing selected filename + size, Analyze button, summary header card (total rows / columns / cells), per-column stat cards with type badge, base stats grid (filled/distinct/missing), numeric stats grid (sum/avg/min/max/median/stdDev), text length stats, and animated top-values bars. Download Report button when report was generated.
+- Verified end-to-end via curl: POST /api/tools/stats with `generateReport=true` returned 4 rows × 3 columns with correct stats: id column (numeric: sum=10, avg=2.5, min=1, max=4, median=2.5, stdDev=1.118), name column (text: minLength=3, maxLength=5), email column (text: minLength=12, maxLength=14). Excel report generated and saved to download/.
+
+## New Feature: In-App Notifications Panel
+- Extended Zustand store (src/lib/store.ts) with `notifications`, `pushNotification`, `markAllRead`, `clearNotifications`, and `unreadCount` (computed).
+- Created src/components/notifications-popover.tsx: bell-icon button in the page header with a red unread-count badge (animated scale-in). Popover lists notifications with type-specific icons (info/success/warning/error), title, description, relative timestamp ("just now", "5m ago", "2h ago"), unread dot indicator, "Mark all read" and clear buttons. Empty state with muted bell icon. Scrollable list capped at 30 items.
+
+## New Feature: Recently Used Tools (Persistent)
+- Extended Zustand store with `recentTools` array and `trackToolVisit` action. `setCurrentView` now auto-tracks visits to tool views (not dashboard/settings/about).
+- Store wrapped with `persist` middleware (localStorage) so `recentTools`, `notifications`, and `theme` survive page reloads.
+- Dashboard hero section now shows "Recently used:" chips below the welcome text — each chip is a clickable button with the tool's icon + title that navigates to that tool. Chips animate in with staggered delays.
+
+## New Feature: Active-Task Indicator
+- Page header (src/app/page.tsx) now shows a small "N running" pill with a spinner when `activeTasks > 0` (from the existing Zustand counter). Tooltip explains "N background tasks in progress".
+
+## Mandatory Styling Improvements
+- Enhanced src/app/globals.css with new utility classes and keyframes:
+  - `.shimmer` — skeleton loading shimmer animation
+  - `.bg-grid` — subtle grid background pattern with radial mask
+  - `.text-gradient-animated` — animated gradient text
+  - `.pulse-glow` — pulsing glow for primary CTAs
+  - `.nav-underline` — animated underline for nav links
+  - `.float` — gentle floating animation for decorative elements
+  - `.fade-slide-up` — entrance animation utility
+  - `.app-shell` / `> main` — sticky-footer flex layout helper
+  - `@media (prefers-reduced-motion: reduce)` — accessibility: disables heavy animations for users who prefer reduced motion
+- Dashboard hero section: replaced static blur blobs with two animated framer-motion blobs that drift and scale on infinite loops (12s and 15s cycles). Added "Recently used" chips row with staggered fade-in. Spring-physics hover lift on each tool card (whileHover y: -4). Icon containers now rotate 6° + scale 1.1 on hover. Added top accent bar that fades in on hover. "9 available" badge next to Tools heading. TrendingUp icon next to the most-used tool in Usage Insights.
+- Quick Stats cards: each now has a decorative blurred blob in the top-right corner and animated count-up entrance.
+- About page: updated to 9 tools, version bumped to v2.0.0, added Data Sorter / Data Filter / Statistics & Summary to features list.
+- Settings page: toolLabelMap and toolColorMap updated to include filter (orange) and stats (indigo).
+
+## Store Migration
+- Switched Zustand store from `create()` to `create(persist(...))` with `partialize` to selectively persist only `recentTools`, `notifications`, and `theme` (not transient state like `currentView`, `activeTasks`, `isLoading`, `fileHistory`).
+
+## Verification
+- Lint: `bun run lint` — zero errors.
+- Dev server: GET / returns 200, all API routes return 200.
+- agent-browser verified: dashboard renders with 9 tool cards, sidebar shows all 9 tools + Data Filter + Statistics, theme toggle works, command palette (Ctrl+K) shows all 12 commands including the two new tools with appropriate keywords.
+- curl verified both new APIs:
+  - POST /api/tools/filter: 4 rows → 2 matched, 2 removed, correct conditions respected.
+  - POST /api/tools/stats: 4 rows × 3 columns, correct numeric stats (sum=10, avg=2.5, etc.), Excel report generated.
+- Database: both new tools write FileRecord entries with tool="filter" / tool="stats" status="completed".
+
+Stage Summary:
+- Project expanded from 7 → 9 tools (added Data Filter and Statistics & Summary).
+- New in-app notifications panel with bell icon, unread badge, mark-all-read, and clear actions.
+- Recently-used tools tracking with persistent localStorage, surfaced as quick-access chips on the dashboard.
+- Active-task indicator in page header.
+- Fixed FileDropzone id-collision bug (useId).
+- Comprehensive styling improvements: animated hero blobs, gradient patterns, shimmer skeletons, pulse-glow CTAs, nav underlines, reduced-motion accessibility, spring-physics card hover.
+- All 11 API routes return 200, lint passes, no runtime errors.
+- Application is production-ready with enhanced UX and 2 new analytical tools.

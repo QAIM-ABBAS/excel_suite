@@ -209,3 +209,146 @@ input[type="number"]::-webkit-outer-spin-button {
   margin: 0;
 }
 
+/* ===== Enhanced animations and visual details ===== */
+
+/* Shimmer effect for skeleton loaders */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklch, var(--muted) 80%, transparent) 0%,
+    color-mix(in oklch, var(--muted) 40%, transparent) 50%,
+    color-mix(in oklch, var(--muted) 80%, transparent) 100%
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite linear;
+}
+
+/* Subtle grid pattern utility (used as background decoration) */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in oklch, var(--border) 60%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklch, var(--border) 60%, transparent) 1px, transparent 1px);
+  background-size: 28px 28px;
+  -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+}
+
+/* Animated gradient text */
+@keyframes gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.text-gradient-animated {
+  background: linear-gradient(
+    90deg,
+    var(--foreground),
+    color-mix(in oklch, var(--primary) 70%, var(--foreground)),
+    var(--foreground)
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-shift 4s ease infinite;
+}
+
+/* Pulse glow for primary CTA */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 color-mix(in oklch, var(--primary) 25%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in oklch, var(--primary) 0%, transparent);
+  }
+}
+
+.pulse-glow {
+  animation: pulse-glow 2.4s ease-in-out infinite;
+}
+
+/* Animated underline for nav links */
+.nav-underline {
+  position: relative;
+}
+.nav-underline::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 4px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--primary), transparent);
+  transform: scaleX(0);
+  transition: transform 0.25s ease;
+  transform-origin: center;
+}
+.nav-underline:hover::after,
+.nav-underline[data-active="true"]::after {
+  transform: scaleX(1);
+}
+
+/* Floating animation for decorative elements */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+.float {
+  animation: float 5s ease-in-out infinite;
+}
+
+/* Fade-in slide-up entrance */
+@keyframes fade-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.fade-slide-up {
+  animation: fade-slide-up 0.4s ease-out both;
+}
+
+/* Sticky footer helper: ensures footer stays at bottom */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+.app-shell > main {
+  flex: 1 0 auto;
+}
+
+/* Reduced motion accessibility: disable heavy animations */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+

@@ -4,13 +4,24 @@ import { useAppStore, type ToolView } from "@/lib/store"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { GitMerge, ArrowLeftRight, CopyX, UserCheck, Download, ImageDown, FileSpreadsheet, Clock, ArrowRight, Zap, Shield, Sparkles, ArrowUpDown, TrendingUp, Activity } from "lucide-react"
+import { GitMerge, ArrowLeftRight, CopyX, UserCheck, Download, ImageDown, FileSpreadsheet, Clock, ArrowRight, Zap, Shield, Sparkles, ArrowUpDown, TrendingUp, Activity, Filter, BarChart3, Clock3, type LucideIcon } from "lucide-react"
 import { motion } from "framer-motion"
 import { useEffect, useState } from "react"
 
-const tools = [
+interface ToolMeta {
+  id: ToolView
+  title: string
+  description: string
+  icon: LucideIcon
+  color: string
+  bg: string
+  gradient: string
+  tag?: string
+}
+
+const tools: ToolMeta[] = [
   {
-    id: "merge" as ToolView,
+    id: "merge",
     title: "Merge Files",
     description: "Combine multiple Excel or CSV files into one",
     icon: GitMerge,
@@ -20,7 +31,7 @@ const tools = [
     tag: "Popular",
   },
   {
-    id: "convert" as ToolView,
+    id: "convert",
     title: "CSV ⇄ Excel",
     description: "Convert between CSV and Excel formats",
     icon: ArrowLeftRight,
@@ -29,7 +40,7 @@ const tools = [
     gradient: "from-amber-500/20",
   },
   {
-    id: "duplicates" as ToolView,
+    id: "duplicates",
     title: "Remove Duplicates",
     description: "Find and remove duplicate rows from your data",
     icon: CopyX,
@@ -38,7 +49,7 @@ const tools = [
     gradient: "from-rose-500/20",
   },
   {
-    id: "sort" as ToolView,
+    id: "sort",
     title: "Data Sorter",
     description: "Sort your data by any column ascending or descending",
     icon: ArrowUpDown,
@@ -48,17 +59,36 @@ const tools = [
     tag: "New",
   },
   {
-    id: "attendance" as ToolView,
+    id: "filter",
+    title: "Data Filter",
+    description: "Filter rows by one or more conditions (AND / OR)",
+    icon: Filter,
+    color: "text-orange-500",
+    bg: "bg-orange-500/10",
+    gradient: "from-orange-500/20",
+    tag: "New",
+  },
+  {
+    id: "stats",
+    title: "Statistics",
+    description: "Compute descriptive statistics for every column",
+    icon: BarChart3,
+    color: "text-indigo-500",
+    bg: "bg-indigo-500/10",
+    gradient: "from-indigo-500/20",
+    tag: "New",
+  },
+  {
+    id: "attendance",
     title: "Attendance Checker",
     description: "Calculate attendance statistics from spreadsheets",
     icon: UserCheck,
     color: "text-sky-500",
     bg: "bg-sky-500/10",
     gradient: "from-sky-500/20",
-    tag: "New",
   },
   {
-    id: "download-excel" as ToolView,
+    id: "download-excel",
     title: "Download Excel",
     description: "Download Excel files from a URL",
     icon: Download,
@@ -67,7 +97,7 @@ const tools = [
     gradient: "from-violet-500/20",
   },
   {
-    id: "download-images" as ToolView,
+    id: "download-images",
     title: "Download Images",
     description: "Embed images into Excel from URLs",
     icon: ImageDown,
@@ -81,7 +111,7 @@ const container = {
   hidden: { opacity: 0 },
   show: {
     opacity: 1,
-    transition: { staggerChildren: 0.08 },
+    transition: { staggerChildren: 0.06 },
   },
 }
 
@@ -104,6 +134,8 @@ const toolLabelMap: Record<string, string> = {
   convert: "Convert",
   duplicates: "Duplicates",
   sort: "Sort",
+  filter: "Filter",
+  stats: "Stats",
   attendance: "Attendance",
   "download-excel": "Download",
   "download-images": "Images",
@@ -114,13 +146,28 @@ const toolColorMap: Record<string, string> = {
   convert: "bg-amber-500/10 text-amber-500",
   duplicates: "bg-rose-500/10 text-rose-500",
   sort: "bg-cyan-500/10 text-cyan-500",
+  filter: "bg-orange-500/10 text-orange-500",
+  stats: "bg-indigo-500/10 text-indigo-500",
   attendance: "bg-sky-500/10 text-sky-500",
   "download-excel": "bg-violet-500/10 text-violet-500",
   "download-images": "bg-pink-500/10 text-pink-500",
 }
 
+// Quick lookup of icon by tool id for recently used chips
+const toolIconMap: Record<string, LucideIcon> = {
+  merge: GitMerge,
+  convert: ArrowLeftRight,
+  duplicates: CopyX,
+  sort: ArrowUpDown,
+  filter: Filter,
+  stats: BarChart3,
+  attendance: UserCheck,
+  "download-excel": Download,
+  "download-images": ImageDown,
+}
+
 export function DashboardView() {
-  const { setCurrentView } = useAppStore()
+  const { setCurrentView, recentTools } = useAppStore()
   const [recentFiles, setRecentFiles] = useState<FileRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [totalFiles, setTotalFiles] = useState(0)
@@ -133,7 +180,6 @@ export function DashboardView() {
         if (data.success) {
           setRecentFiles(data.records.slice(0, 5))
           setTotalFiles(data.records.length)
-          // Compute tool usage stats
           const stats: Record<string, number> = {}
           for (const r of data.records) {
             stats[r.tool] = (stats[r.tool] || 0) + 1
@@ -157,16 +203,31 @@ export function DashboardView() {
     return d.toLocaleDateString()
   }
 
+  const recentToolMeta = recentTools
+    .map((id) => tools.find((t) => t.id === id))
+    .filter((t): t is ToolMeta => Boolean(t))
+    .slice(0, 5)
+
   return (
     <div className="space-y-6">
-      {/* Hero Section */}
+      {/* Hero Section with animated background blobs */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         className="relative overflow-hidden rounded-2xl border border-border/50 bg-gradient-to-br from-primary/5 via-primary/10 to-transparent p-6 lg:p-8"
       >
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 h-32 w-32 rounded-full bg-primary/5 blur-3xl" />
-        <div className="absolute bottom-0 left-1/3 -mb-12 h-24 w-24 rounded-full bg-primary/5 blur-2xl" />
+        {/* Animated background blobs */}
+        <motion.div
+          animate={{ x: [0, 30, 0], y: [0, -20, 0], scale: [1, 1.1, 1] }}
+          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute top-0 right-0 -mt-8 -mr-8 h-40 w-40 rounded-full bg-primary/10 blur-3xl"
+        />
+        <motion.div
+          animate={{ x: [0, -20, 0], y: [0, 25, 0], scale: [1, 1.15, 1] }}
+          transition={{ duration: 15, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          className="absolute bottom-0 left-1/3 -mb-12 h-32 w-32 rounded-full bg-emerald-500/10 blur-3xl dark:bg-emerald-500/5"
+        />
+
         <div className="relative flex items-start justify-between gap-4 flex-wrap">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
@@ -175,7 +236,7 @@ export function DashboardView() {
             </div>
             <h2 className="text-2xl lg:text-3xl font-bold tracking-tight">Welcome back</h2>
             <p className="text-muted-foreground text-sm max-w-md">
-              Process, convert, and analyze your spreadsheet files with powerful automation tools. Fast, secure, and easy to use.
+              Process, convert, and analyze your spreadsheet files with {tools.length} powerful automation tools. Fast, secure, and easy to use.
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -189,13 +250,44 @@ export function DashboardView() {
             </Badge>
           </div>
         </div>
+
+        {/* Recently used tools chips */}
+        {recentToolMeta.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="relative mt-5 flex items-center gap-2 flex-wrap"
+          >
+            <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+              <Clock3 className="h-3 w-3" />
+              Recently used:
+            </span>
+            {recentToolMeta.map((tool, i) => (
+              <motion.button
+                key={tool.id}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.4 + i * 0.05 }}
+                whileHover={{ scale: 1.05, y: -1 }}
+                onClick={() => setCurrentView(tool.id)}
+                className={`group inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-background/60 backdrop-blur px-2.5 py-1 text-xs transition-colors hover:border-primary/40`}
+              >
+                <tool.icon className={`h-3 w-3 ${tool.color}`} />
+                <span className="font-medium">{tool.title}</span>
+              </motion.button>
+            ))}
+          </motion.div>
+        )}
       </motion.div>
 
       {/* Tools Grid */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">Tools</h3>
-          <span className="text-xs text-muted-foreground">{tools.length} available</span>
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-semibold">Tools</h3>
+            <Badge variant="secondary" className="text-[10px]">{tools.length} available</Badge>
+          </div>
         </div>
 
         <motion.div
@@ -205,17 +297,25 @@ export function DashboardView() {
           className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
         >
           {tools.map((tool) => (
-            <motion.div key={tool.id} variants={item}>
+            <motion.div key={tool.id} variants={item} whileHover={{ y: -4 }} transition={{ type: "spring", stiffness: 300 }}>
               <Card
-                className="relative cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-primary/30 group"
+                className="relative cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-xl hover:border-primary/30 group h-full"
                 onClick={() => setCurrentView(tool.id)}
               >
+                {/* Gradient overlay on hover */}
                 <div className={`absolute inset-0 bg-gradient-to-br ${tool.gradient} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+                {/* Top accent bar */}
+                <div className={`absolute top-0 left-0 right-0 h-0.5 ${tool.bg.replace('/10', '/60')} opacity-0 group-hover:opacity-100 transition-opacity`} />
+
                 <CardHeader className="relative pb-3">
                   <div className="flex items-center justify-between">
-                    <div className={`inline-flex h-11 w-11 items-center justify-center rounded-xl ${tool.bg} ${tool.color} group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
+                    <motion.div
+                      whileHover={{ rotate: 6, scale: 1.1 }}
+                      transition={{ type: "spring", stiffness: 400 }}
+                      className={`inline-flex h-11 w-11 items-center justify-center rounded-xl ${tool.bg} ${tool.color}`}
+                    >
                       <tool.icon className="h-5 w-5" />
-                    </div>
+                    </motion.div>
                     {tool.tag && (
                       <Badge variant="secondary" className="text-[10px] gap-1">
                         <Sparkles className="h-2.5 w-2.5" />
@@ -237,7 +337,7 @@ export function DashboardView() {
         </motion.div>
       </div>
 
-      {/* Recent Files + Stats */}
+      {/* Recent Files + Quick Stats */}
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Recent Files - takes 2 columns */}
         <div className="lg:col-span-2 space-y-3">
@@ -310,12 +410,19 @@ export function DashboardView() {
         <div className="space-y-3">
           <h3 className="text-lg font-semibold">Quick Stats</h3>
           <div className="space-y-3">
-            <Card className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/0 border-emerald-500/20">
-              <CardContent className="pt-4 pb-4">
+            <Card className="relative overflow-hidden bg-gradient-to-br from-emerald-500/10 to-emerald-500/0 border-emerald-500/20">
+              <div className="absolute -top-4 -right-4 h-16 w-16 rounded-full bg-emerald-500/10 blur-2xl" />
+              <CardContent className="relative pt-4 pb-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Files Processed</p>
-                    <p className="text-3xl font-bold mt-1">{totalFiles}</p>
+                    <motion.p
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="text-3xl font-bold mt-1 tabular-nums"
+                    >
+                      {totalFiles}
+                    </motion.p>
                   </div>
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10">
                     <FileSpreadsheet className="h-5 w-5 text-emerald-500" />
@@ -323,12 +430,19 @@ export function DashboardView() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-gradient-to-br from-sky-500/10 to-sky-500/0 border-sky-500/20">
-              <CardContent className="pt-4 pb-4">
+            <Card className="relative overflow-hidden bg-gradient-to-br from-sky-500/10 to-sky-500/0 border-sky-500/20">
+              <div className="absolute -top-4 -right-4 h-16 w-16 rounded-full bg-sky-500/10 blur-2xl" />
+              <CardContent className="relative pt-4 pb-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs text-sky-600 dark:text-sky-400 font-medium">Tools Available</p>
-                    <p className="text-3xl font-bold mt-1">{tools.length}</p>
+                    <motion.p
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="text-3xl font-bold mt-1 tabular-nums"
+                    >
+                      {tools.length}
+                    </motion.p>
                   </div>
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sky-500/10">
                     <Zap className="h-5 w-5 text-sky-500" />
@@ -336,8 +450,9 @@ export function DashboardView() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-gradient-to-br from-violet-500/10 to-violet-500/0 border-violet-500/20">
-              <CardContent className="pt-4 pb-4">
+            <Card className="relative overflow-hidden bg-gradient-to-br from-violet-500/10 to-violet-500/0 border-violet-500/20">
+              <div className="absolute -top-4 -right-4 h-16 w-16 rounded-full bg-violet-500/10 blur-2xl" />
+              <CardContent className="relative pt-4 pb-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs text-violet-600 dark:text-violet-400 font-medium">Max File Size</p>
@@ -359,35 +474,50 @@ export function DashboardView() {
           <div className="flex items-center gap-2">
             <Activity className="h-4 w-4 text-muted-foreground" />
             <h3 className="text-lg font-semibold">Usage Insights</h3>
+            <Badge variant="secondary" className="text-[10px]">{Object.keys(toolStats).length} tools used</Badge>
           </div>
           <Card>
             <CardContent className="pt-6">
               <div className="space-y-3">
                 {Object.entries(toolStats)
                   .sort(([, a], [, b]) => b - a)
-                  .map(([tool, count]) => {
+                  .map(([tool, count], idx) => {
                     const maxCount = Math.max(...Object.values(toolStats))
                     const percentage = maxCount > 0 ? (count / maxCount) * 100 : 0
+                    const Icon = toolIconMap[tool] || FileSpreadsheet
                     return (
-                      <div key={tool} className="flex items-center gap-3">
+                      <motion.div
+                        key={tool}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: idx * 0.05 }}
+                        className="flex items-center gap-3"
+                      >
                         <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${toolColorMap[tool] || "bg-muted text-muted-foreground"}`}>
-                          <FileSpreadsheet className="h-3.5 w-3.5" />
+                          <Icon className="h-3.5 w-3.5" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-xs font-medium">{toolLabelMap[tool] || tool}</span>
-                            <span className="text-xs text-muted-foreground tabular-nums">{count} {count === 1 ? "file" : "files"}</span>
+                            <span className="text-xs text-muted-foreground tabular-nums">
+                              {count} {count === 1 ? "file" : "files"}
+                              {idx === 0 && count > 0 && (
+                                <span className="ml-1 inline-flex items-center gap-0.5 text-amber-500">
+                                  <TrendingUp className="h-2.5 w-2.5" />
+                                </span>
+                              )}
+                            </span>
                           </div>
                           <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
                             <motion.div
                               initial={{ width: 0 }}
                               animate={{ width: `${percentage}%` }}
-                              transition={{ duration: 0.8, ease: "easeOut" }}
-                              className="h-full rounded-full bg-primary"
+                              transition={{ duration: 0.8, ease: "easeOut", delay: 0.1 + idx * 0.05 }}
+                              className="h-full rounded-full bg-gradient-to-r from-primary/60 to-primary"
                             />
                           </div>
                         </div>
-                      </div>
+                      </motion.div>
                     )
                   })}
               </div>

@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Excel Automation Suite",
-  description: "Modern Excel automation tools - Merge, Convert, Deduplicate, and more",
+  description: "Modern Excel automation tools - Merge, Convert, Deduplicate, Sort, Filter, Statistics and more",
 };
 
 export default function RootLayout({
