@@ -53,6 +53,10 @@ RUN apt-get update && \
 RUN groupadd -r nextjs && \
     useradd -r -g nextjs nextjs
 
+# Create Nginx directories and give ownership to nextjs
+RUN mkdir -p /var/lib/nginx /var/cache/nginx && \
+    chown -R nextjs:nextjs /var/lib/nginx /var/cache/nginx
+
 # Copy built application
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./

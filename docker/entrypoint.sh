@@ -42,9 +42,6 @@ fi
 
 echo "🌐 Starting Nginx..."
 
-mkdir -p /var/lib/nginx/body /var/cache/nginx
-chown -R nginx:nginx /var/lib/nginx /var/cache/nginx
-
 nginx -g "daemon off;" &
 NGINX_PID=$!
 
