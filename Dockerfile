@@ -1,63 +1,79 @@
-# ─── Stage 1: Install dependencies ────────────────────────────────────────────
-FROM node:20-bookworm AS deps
-WORKDIR /app
-COPY package.json bun.lock ./
-RUN corepack enable && bun install --frozen-lockfile
+# syntax=docker/dockerfile:1.7
 
-# ─── Stage 2: Build Next.js ───────────────────────────────────────────────────
+########################################
+# Builder
+########################################
 FROM node:20-bookworm AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-RUN npx prisma generate
-RUN npm run build
 
-# ─── Stage 3: Production image (pure Node.js, no Python) ─────────────────────
+WORKDIR /app
+
+# Install curl (required for Bun installation)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Bun
+RUN curl -fsSL https://bun.sh/install | bash
+ENV PATH="/root/.bun/bin:${PATH}"
+
+# Copy dependency files first for better layer caching
+COPY package.json bun.lockb* ./
+
+# Install dependencies
+RUN bun install --frozen-lockfile
+
+# Copy application source
+COPY . .
+
+# Generate Prisma client
+RUN bunx prisma generate
+
+# Build Next.js
+RUN bun run build
+
+
+########################################
+# Runtime
+########################################
 FROM node:20-bookworm-slim
 
-# Install nginx for reverse proxy + curl for healthchecks
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=3000
+
+# Install only required runtime packages
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         nginx \
-        curl \
-    && rm -rf /var/lib/apt/lists/*
+        curl && \
+    rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+# Create non-root user
+RUN groupadd -r nextjs && \
+    useradd -r -g nextjs nextjs
 
-# ─── Copy Next.js standalone build ───────────────────────────────────────────
+# Copy built application
+COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
-
-# ─── Copy Prisma runtime ─────────────────────────────────────────────────────
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
-# ─── Ensure data directories ─────────────────────────────────────────────────
-RUN mkdir -p /app/download /app/db /app/tmp-uploads
+# Copy configuration files
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY entrypoint.sh /entrypoint.sh
 
-# ─── Copy nginx config ───────────────────────────────────────────────────────
-COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
-RUN rm -f /etc/nginx/sites-enabled/default
-
-# ─── Copy entrypoint ─────────────────────────────────────────────────────────
-COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# ─── Environment ─────────────────────────────────────────────────────────────
-ENV NODE_ENV=production
-ENV PORT=3000
-ENV DATABASE_URL=file:/app/db/custom.db
+# Create writable directories
+RUN mkdir -p /app/db /app/download && \
+    chown -R nextjs:nextjs /app
 
-# Expose nginx port
-EXPOSE 80
+USER nextjs
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:3000/ || exit 1
+EXPOSE 3000
 
-# Volumes for persistent data
-VOLUME ["/app/db", "/app/download"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD curl -fs http://localhost:3000/ || exit 1
 
 ENTRYPOINT ["/entrypoint.sh"]

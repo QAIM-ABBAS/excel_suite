@@ -19,3 +19,16 @@ mini-services/api-service/__pycache__
 mini-services/api-service/*.pid
 mini-services/api-service/watchdog.sh
 mini-services/api-service/start.sh
+.github
+.vscode
+coverage
+dist
+Dockerfile
+docker-compose.yml
+README.md
+.env
+.env.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+bun.lockb.tmp
