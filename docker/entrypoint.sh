@@ -1,36 +1,82 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
-echo "🚀 Starting Excel Automation Suite (pure Node.js)..."
+echo "🚀 Starting Excel Automation Suite..."
 
-# ─── Initialize database if not exists ────────────────────────────────────────
+cleanup() {
+    echo ""
+    echo "🛑 Shutting down services..."
+
+    kill "$NGINX_PID" 2>/dev/null || true
+    kill "$NEXT_PID" 2>/dev/null || true
+
+    wait
+
+    echo "✅ Shutdown complete."
+}
+
+trap cleanup SIGTERM SIGINT
+
+# -----------------------------------------------------------------------------
+# Initialize SQLite database
+# -----------------------------------------------------------------------------
+
 if [ ! -f /app/db/custom.db ]; then
     echo "📦 Initializing SQLite database..."
-    cd /app && npx prisma db push --skip-generate 2>/dev/null || true
-    echo "✅ Database initialized"
+
+    cd /app
+
+    if ! npx prisma db push --skip-generate; then
+        echo "❌ Failed to initialize database."
+        exit 1
+    fi
+
+    echo "✅ Database initialized."
 else
-    echo "✅ Database already exists"
+    echo "✅ Database already exists."
 fi
 
-# ─── Start nginx in background ────────────────────────────────────────────────
-echo "🌐 Starting nginx..."
+# -----------------------------------------------------------------------------
+# Start Nginx
+# -----------------------------------------------------------------------------
+
+echo "🌐 Starting Nginx..."
+
 nginx -g "daemon off;" &
 NGINX_PID=$!
 
-# ─── Start Next.js standalone server ──────────────────────────────────────────
-echo "⚡ Starting Next.js server on port 3000..."
+sleep 1
+
+if ! kill -0 "$NGINX_PID" 2>/dev/null; then
+    echo "❌ Nginx failed to start."
+    exit 1
+fi
+
+# -----------------------------------------------------------------------------
+# Start Next.js
+# -----------------------------------------------------------------------------
+
+echo "⚡ Starting Next.js..."
+
 cd /app
+
 node server.js &
 NEXT_PID=$!
 
-echo "✅ Excel Automation Suite is ready!"
-echo "   Access it at http://localhost:80"
+sleep 1
 
-# ─── Wait for either process to exit ──────────────────────────────────────────
-wait -n $NGINX_PID $NEXT_PID 2>/dev/null || true
+if ! kill -0 "$NEXT_PID" 2>/dev/null; then
+    echo "❌ Next.js failed to start."
+    exit 1
+fi
 
-# If either process dies, kill the other
-echo "⚠️ A process exited, shutting down..."
-kill $NGINX_PID 2>/dev/null || true
-kill $NEXT_PID 2>/dev/null || true
-wait
+echo ""
+echo "✅ Excel Automation Suite is running!"
+echo "🌐 http://localhost"
+
+# Wait until either process exits
+wait -n "$NGINX_PID" "$NEXT_PID"
+
+echo "⚠️ One of the services stopped."
+
+cleanup
