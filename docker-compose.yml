@@ -1,0 +1,37 @@
+# ─── Excel Automation Suite - Docker Compose ─────────────────────────────────
+#
+# Pure Next.js backend (no Python). All data processing done in TypeScript
+# using SheetJS (xlsx) and PapaParse.
+#
+# Usage:
+#   docker compose up -d --build
+#
+# App runs on http://your-server:8080
+
+services:
+  excel-suite:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: excel-suite
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - excel-db:/app/db
+      - excel-downloads:/app/download
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:/app/db/custom.db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  excel-db:
+    driver: local
+  excel-downloads:
+    driver: local

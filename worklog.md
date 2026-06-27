@@ -620,3 +620,82 @@ Unresolved Issues:
 - The download-excel and download-images tools use httpx which may not work in subprocess mode (not tested yet)
 
 ---
+
+---
+Task ID: 17
+Agent: main-agent
+Task: Rewrite backend as pure Next.js (remove Python dependency entirely)
+
+Work Log:
+- User reported the Python subprocess approach "is not working correctly" and requested pure Next.js backend
+- Read the full Python CLI (mini-services/api-service/cli.py, 971 lines) to understand all 13 tool implementations
+- Created `src/lib/excel.ts` — pure TypeScript file I/O helpers using:
+  - SheetJS (xlsx@0.18.5) for Excel reading/writing (already in package.json)
+  - PapaParse (papaparse@5.5.4) for CSV parsing (already in package.json)
+  - Helpers: readFileToRows, saveRowsToFile, saveSheetsToFile, toNum, isNumeric, mean, median, stdDev, quantile, topValues, rowsToDicts
+  - All values coerced to strings to mirror Python's `dtype=str` behavior
+- Created `src/lib/tools.ts` — all 13 tool implementations in pure TypeScript:
+  - merge, columns, duplicates, convert, stats, sort, filter, replace, transpose, pivot, validate, attendance, preview
+  - Plus: download-excel, download-images (using native fetch), history_get/delete, errors_get
+  - Uses Prisma ORM for database operations (FileRecord, ErrorLog models)
+- Rewrote `src/app/api/tools/[...tool]/route.ts` as pure TypeScript dispatcher:
+  - Removed all Python subprocess (execFile) logic
+  - Removed CLI_PATH, runPythonCLI, args temp file logic
+  - Now imports tool functions directly from @/lib/tools and dispatches via switch statement
+  - Handles GET (download, preview, history, errors), POST (all tools), DELETE (history)
+  - FormData parsing for file uploads, JSON body parsing for download-excel/images
+- Simplified `Dockerfile` — removed all Python:
+  - Removed python3, python3-pip, python3-venv installs
+  - Removed /opt/python-venv and pip install steps
+  - Removed requirements.txt copy
+  - Now only Node.js 20 + nginx + curl
+  - Multi-stage build: deps → builder → production
+  - Uses Next.js standalone output mode
+- Removed Docker files no longer needed:
+  - Dockerfile.prod (was for FastAPI variant)
+  - docker-compose.prod.yml
+  - docker/fastapi-server.py
+  - docker/supervisord.conf
+  - docker/nginx.prod.conf
+- Recreated `docker/nginx.conf` (simple reverse proxy to Next.js on :3000)
+- Recreated `docker/entrypoint.sh` (nginx + Next.js, auto-init DB with prisma db push)
+- Recreated `docker-compose.yml` (single service, port 8080:80, 2 volumes for db+downloads)
+- Recreated `.dockerignore` and `.env.example`
+
+## Verification
+- Lint: `bun run lint` — zero errors, zero warnings
+- Dev server: all 200 responses, clean compiles, no runtime errors
+- curl end-to-end tests on ALL 13 tools — ALL PASSED:
+  - columns: 6 rows, 5 columns detected ✓
+  - duplicates: 6 rows → 5 remaining (1 Alice dup removed) ✓
+  - stats: numeric/text/mixed type detection, mean/median/stdDev/topValues ✓
+  - sort: descending by age works ✓
+  - filter: age > 25 → 4 matched out of 6 ✓
+  - replace: "alice" → "ALICE" → 4 matches, 2 rows affected ✓
+  - transpose: 6×5 → 5×7 (Column + Row 1-6) ✓
+  - pivot: group by name → 5 groups with avg_score and count ✓
+  - validate: score 75/100, 1 error (invalid email), 1 warning (outlier), 1 info (empty cell) ✓
+  - convert: CSV → XLSX ✓
+  - attendance: roll 101 → 4/5 present = 80% ✓
+  - merge: 2 files → 8 rows merged ✓
+  - preview: loaded saved file, returned first N rows ✓
+  - history/errors endpoints: working ✓
+- agent-browser QA: dashboard loads, navigated to Remove Duplicates tool, uploaded test_dirty.csv, selected "name" column, clicked "Remove Duplicates" → result showed "Total Rows: 6, Duplicates: 1, Remaining: 5" ✓
+
+Stage Summary:
+- Backend FULLY migrated from Python (subprocess CLI) to pure TypeScript (Next.js native)
+- Zero Python dependency in the application or Docker image
+- All 13 tools implemented in src/lib/tools.ts using SheetJS + PapaParse
+- Docker image is now Node.js-only (smaller, simpler, faster builds)
+- All data processing happens in-process — no subprocess overhead, no cold start latency
+- Database operations use Prisma ORM (already configured)
+- Frontend code unchanged — all /api/tools/* paths work identically
+- Docker deployment: `docker compose up -d --build` → app on port 8080
+
+Architecture (NEW — pure Next.js):
+- Frontend: React + shadcn/ui (unchanged)
+- API Routes: src/app/api/tools/[...tool]/route.ts (Next.js native)
+- Tool Logic: src/lib/tools.ts (TypeScript)
+- File I/O: src/lib/excel.ts (SheetJS + PapaParse)
+- Database: Prisma + SQLite (src/lib/db.ts)
+- Container: Node.js 20 + nginx (no Python)

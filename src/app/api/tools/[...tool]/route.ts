@@ -1,15 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir, readFile, stat, unlink } from "fs/promises";
-import { execFile } from "child_process";
-import { promisify } from "util";
 import path from "path";
 import { randomUUID } from "crypto";
 
-const execFileAsync = promisify(execFile);
+import {
+  toolMerge,
+  toolColumns,
+  toolDuplicates,
+  toolConvert,
+  toolStats,
+  toolSort,
+  toolFilter,
+  toolReplace,
+  toolTranspose,
+  toolPivot,
+  toolValidate,
+  toolAttendance,
+  toolPreview,
+  toolDownloadExcel,
+  toolDownloadImages,
+  toolHistoryGet,
+  toolHistoryDelete,
+  toolErrorsGet,
+} from "@/lib/tools";
+import { DOWNLOAD_DIR } from "@/lib/excel";
 
 const UPLOAD_DIR = path.join(process.cwd(), "tmp-uploads");
-const CLI_PATH = path.join(process.cwd(), "mini-services", "api-service", "cli.py");
-const PYTHON = "python3";
 
 async function ensureUploadDir() {
   try {
@@ -34,20 +50,13 @@ async function saveUploadedFile(file: File): Promise<SavedFile> {
   return { tempPath, originalName: file.name, size: buffer.length };
 }
 
-async function saveMultipleFiles(files: File[]): Promise<SavedFile[]> {
-  const saved: SavedFile[] = [];
-  for (const file of files) {
-    saved.push(await saveUploadedFile(file));
-  }
-  return saved;
-}
-
 async function cleanupFiles(files: SavedFile[]) {
   for (const f of files) {
     try { await unlink(f.tempPath); } catch {}
   }
 }
 
+// ─── POST handler ────────────────────────────────────────────────────────────
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ tool: string[] }> }
@@ -57,21 +66,18 @@ export async function POST(
 
   try {
     const contentType = request.headers.get("content-type") || "";
-
     let args: Record<string, unknown> = {};
 
     if (contentType.includes("multipart/form-data")) {
       const formData = await request.formData();
       const savedFiles: SavedFile[] = [];
 
-      // Save all uploaded files
       for (const [key, value] of formData.entries()) {
         if (value instanceof File) {
           const saved = await saveUploadedFile(value);
           savedFiles.push(saved);
-          
+
           if (key === "files") {
-            // Multiple files for merge
             if (!args.files) args.files = [];
             (args.files as string[]).push(saved.tempPath);
           } else if (key === "file") {
@@ -79,48 +85,38 @@ export async function POST(
             args.originalName = saved.originalName;
           }
         } else {
-          // Regular form field
           let parsedValue: unknown = value;
-          
-          // Try to parse JSON fields
           if (typeof value === "string" && (value.startsWith("[") || value.startsWith("{"))) {
-            try {
-              parsedValue = JSON.parse(value);
-            } catch {}
+            try { parsedValue = JSON.parse(value); } catch {}
           }
-          
           args[key] = parsedValue;
         }
       }
 
-      // Handle merge tool with multiple files
+      // Merge tool: ensure files array
       if (toolName === "merge" && savedFiles.length >= 2) {
-        args.files = savedFiles.map(f => f.tempPath);
+        args.files = savedFiles.map((f) => f.tempPath);
       }
 
-      // Build args and run Python CLI
-      const result = await runPythonCLI(toolName, args);
-      
-      // Cleanup temp files
+      const result = await dispatchTool(toolName, args);
       await cleanupFiles(savedFiles);
-      
       return NextResponse.json(result);
     } else if (contentType.includes("application/json")) {
-      // JSON body (e.g., download-excel)
       const body = await request.json();
       args = { ...body };
-      
-      const result = await runPythonCLI(toolName, args);
+      const result = await dispatchTool(toolName, args);
       return NextResponse.json(result);
     } else {
       return NextResponse.json({ error: "Unsupported content type" }, { status: 400 });
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
+    console.error(`[POST /api/tools/${toolName}]`, error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
+// ─── GET handler ─────────────────────────────────────────────────────────────
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ tool: string[] }> }
@@ -131,21 +127,17 @@ export async function GET(
 
   try {
     if (toolName === "download") {
-      // File download - serve from download directory
       const filename = url.searchParams.get("file");
       if (!filename) {
         return NextResponse.json({ error: "Filename is required" }, { status: 400 });
       }
-
       const safeName = path.basename(filename);
-      const filePath = path.join(process.cwd(), "download", safeName);
-
+      const filePath = path.join(DOWNLOAD_DIR, safeName);
       try {
         await stat(filePath);
       } catch {
         return NextResponse.json({ error: "File not found" }, { status: 404 });
       }
-
       const buffer = await readFile(filePath);
       const ext = path.extname(safeName).toLowerCase();
       let contentType = "application/octet-stream";
@@ -154,7 +146,6 @@ export async function GET(
       } else if (ext === ".csv") {
         contentType = "text/csv";
       }
-
       return new NextResponse(buffer, {
         headers: {
           "Content-Type": contentType,
@@ -163,27 +154,27 @@ export async function GET(
         },
       });
     } else if (toolName === "preview") {
-      // Preview file
-      const filename = url.searchParams.get("file");
+      const filename = url.searchParams.get("file") || "";
       const rows = parseInt(url.searchParams.get("rows") || "50", 10);
-      
-      const result = await runPythonCLI("preview", { file: filename, rows });
+      const result = await toolPreview({ file: filename, rows });
       return NextResponse.json(result);
     } else if (toolName === "history") {
-      const result = await runPythonCLI("history_get", {});
+      const result = await toolHistoryGet();
       return NextResponse.json(result);
     } else if (toolName === "errors") {
-      const result = await runPythonCLI("errors_get", {});
+      const result = await toolErrorsGet();
       return NextResponse.json(result);
     } else {
       return NextResponse.json({ error: `Unknown GET endpoint: ${toolName}` }, { status: 404 });
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
+    console.error(`[GET /api/tools/${toolName}]`, error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
+// ─── DELETE handler ──────────────────────────────────────────────────────────
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ tool: string[] }> }
@@ -195,7 +186,7 @@ export async function DELETE(
   try {
     if (toolName === "history") {
       const id = url.searchParams.get("id") || "";
-      const result = await runPythonCLI("history_delete", { id });
+      const result = await toolHistoryDelete({ id });
       return NextResponse.json(result);
     }
     return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
@@ -205,29 +196,49 @@ export async function DELETE(
   }
 }
 
-async function runPythonCLI(tool: string, args: Record<string, unknown>): Promise<unknown> {
-  // Write args to a temp file
-  const argsFile = path.join(UPLOAD_DIR, `args_${randomUUID().slice(0, 8)}.json`);
-  await ensureUploadDir();
-  await writeFile(argsFile, JSON.stringify(args));
-
-  try {
-    const { stdout, stderr } = await execFileAsync(PYTHON, [CLI_PATH, tool, argsFile], {
-      timeout: 60000, // 60 second timeout
-      maxBuffer: 50 * 1024 * 1024, // 50MB buffer
-    });
-
-    if (stderr && process.env.NODE_ENV === "development") {
-      console.error(`[Python CLI ${tool}]`, stderr.slice(0, 500));
-    }
-
-    try {
-      return JSON.parse(stdout);
-    } catch {
-      return { error: "Failed to parse Python output", raw: stdout.slice(0, 200) };
-    }
-  } finally {
-    // Cleanup args file
-    try { await unlink(argsFile); } catch {}
+// ─── Tool dispatcher ─────────────────────────────────────────────────────────
+async function dispatchTool(
+  tool: string,
+  args: Record<string, unknown>
+): Promise<unknown> {
+  switch (tool) {
+    case "merge":
+      return toolMerge(args as any);
+    case "columns":
+      return toolColumns(args as any);
+    case "duplicates":
+      return toolDuplicates(args as any);
+    case "convert":
+      return toolConvert(args as any);
+    case "stats":
+      return toolStats(args as any);
+    case "sort":
+      return toolSort(args as any);
+    case "filter":
+      return toolFilter(args as any);
+    case "replace":
+      return toolReplace(args as any);
+    case "transpose":
+      return toolTranspose(args as any);
+    case "pivot":
+      return toolPivot(args as any);
+    case "validate":
+      return toolValidate(args as any);
+    case "attendance":
+      return toolAttendance(args as any);
+    case "preview":
+      return toolPreview(args as any);
+    case "download-excel":
+      return toolDownloadExcel(args as any);
+    case "download-images":
+      return toolDownloadImages(args as any);
+    case "history_get":
+      return toolHistoryGet();
+    case "history_delete":
+      return toolHistoryDelete(args as any);
+    case "errors_get":
+      return toolErrorsGet();
+    default:
+      return { error: `Unknown tool: ${tool}` };
   }
 }
