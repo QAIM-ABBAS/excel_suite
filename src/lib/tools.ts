@@ -1121,51 +1121,145 @@ export async function toolDownloadExcel(args: {
 
 // ─── Tool: download-images ───────────────────────────────────────────────────
 export async function toolDownloadImages(args: {
-  urls: string[];
-  outputFilename?: string;
+  filepath: string;
+  urlColumn: string;
   originalName?: string;
 }) {
-  const urls = args.urls || [];
-  if (urls.length === 0) return { error: "URLs list is required" };
-  const results: { url: string; success: boolean; size: number; error?: string }[] = [];
-  for (const url of urls.slice(0, 50)) {
+  const { filepath, urlColumn, originalName = "images" } = args;
+
+  if (!filepath) return { error: "File path is required" };
+  if (!urlColumn) return { error: "URL column is required" };
+
+  // Read source spreadsheet
+  const sheets = await readFileToRows(filepath);
+  if (!sheets.length) return { error: "No sheets found in file" };
+  const sheet = sheets[0];
+
+  if (!sheet.columns.includes(urlColumn)) {
+    return { error: `Column "${urlColumn}" not found in file` };
+  }
+
+  // Import sharp once for dimension detection (already in dependencies)
+  let sharpFn: ((buf: Buffer) => { metadata: () => Promise<{ width?: number; height?: number }> }) | null = null;
+  try {
+    const sharpMod = await import("sharp");
+    sharpFn = sharpMod.default as any;
+  } catch {
+    // sharp unavailable; images will use fallback dimensions
+  }
+
+  // Download all image URLs
+  const results: { row: number; url: string; status: string; error?: string }[] = [];
+  const imageBuffers: (Buffer | null)[] = [];
+
+  for (let i = 0; i < sheet.rows.length; i++) {
+    const url = (sheet.rows[i][urlColumn] || "").trim();
+    if (!url) {
+      results.push({ row: i + 1, url: "", status: "skipped" });
+      imageBuffers.push(null);
+      continue;
+    }
     try {
-      const resp = await fetch(url);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 30_000);
+      const resp = await fetch(url, { signal: controller.signal });
+      clearTimeout(timer);
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const ct = resp.headers.get("content-type") || "";
+      if (!ct.startsWith("image/")) throw new Error("Response is not an image");
       const buf = Buffer.from(await resp.arrayBuffer());
-      results.push({ url, success: true, size: buf.length });
+      imageBuffers.push(buf);
+      results.push({ row: i + 1, url, status: "success" });
     } catch (e) {
+      imageBuffers.push(null);
       results.push({
+        row: i + 1,
         url,
-        success: false,
-        size: 0,
+        status: "failed",
         error: e instanceof Error ? e.message : "Failed",
       });
     }
   }
 
-  const rows: Row[] = results.map((r, i) => ({
-    Index: String(i + 1),
-    URL: r.url,
-    Status: r.success ? "OK" : "FAILED",
-    Size: String(r.size),
-    Error: r.error || "",
-  }));
+  // Build Excel workbook with embedded images using ExcelJS
+  const { default: ExcelJS } = await import("exceljs");
+  const workbook = new ExcelJS.Workbook();
+  const ws = workbook.addWorksheet("Sheet1");
 
+  const IMAGE_COL_CHAR_WIDTH = 20; // ~150px
+  const IMAGE_ROW_HEIGHT_PT = 90;  // ~120px
+  const MAX_IMG_W = 140;
+  const MAX_IMG_H = 110;
+
+  // Original columns + new Image column
+  ws.columns = [
+    ...sheet.columns.map((col) => ({ header: col, key: col, width: 20 })),
+    { header: "Image", key: "__image__", width: IMAGE_COL_CHAR_WIDTH },
+  ];
+  const imgColIdx = sheet.columns.length; // 0-based index of the Image column
+
+  for (let i = 0; i < sheet.rows.length; i++) {
+    const rowObj: Record<string, string> = { ...sheet.rows[i], __image__: "" };
+    const xlRow = ws.addRow(rowObj);
+    xlRow.height = IMAGE_ROW_HEIGHT_PT;
+
+    const buf = imageBuffers[i];
+    if (buf) {
+      // Detect extension from URL path (before query string)
+      let ext: "jpeg" | "png" | "gif" | "bmp" = "jpeg";
+      const urlPath = results[i].url.toLowerCase().split("?")[0];
+      if (urlPath.endsWith(".png")) ext = "png";
+      else if (urlPath.endsWith(".gif")) ext = "gif";
+      else if (urlPath.endsWith(".bmp")) ext = "bmp";
+
+      // Scale image to fit within cell dimensions
+      let imgW = MAX_IMG_W;
+      let imgH = MAX_IMG_H;
+      if (sharpFn) {
+        try {
+          const meta = await sharpFn(buf).metadata();
+          if (meta.width && meta.height) {
+            const scale = Math.min(MAX_IMG_W / meta.width, MAX_IMG_H / meta.height, 1);
+            imgW = Math.round(meta.width * scale);
+            imgH = Math.round(meta.height * scale);
+          }
+        } catch {
+          // use defaults
+        }
+      }
+
+      const imageId = workbook.addImage({ buffer: buf, extension: ext });
+      ws.addImage(imageId, {
+        tl: { col: imgColIdx, row: xlRow.number - 1 } as any,
+        ext: { width: imgW, height: imgH },
+      });
+    }
+  }
+
+  // Save to downloads directory
   await ensureDownloadDirExists();
   const uid = Math.random().toString(36).slice(2, 10);
-  const filename = `images_${uid}.xlsx`;
-  const filepath = path.join(DOWNLOAD_DIR, filename);
-  const { saveRowsToFile: saveFn } = await import("@/lib/excel");
-  const info = await saveFn(rows, "images", "");
-  await recordFile(info.filename, "images", info.mime, info.size, "download-images", info.filepath);
+  const baseName = sanitizeFilename(path.basename(originalName, path.extname(originalName))) || "images";
+  const filename = `${baseName}_embedded_${uid}.xlsx`;
+  const outPath = path.join(DOWNLOAD_DIR, filename);
+  const rawBuf = await workbook.xlsx.writeBuffer();
+  const buffer = Buffer.isBuffer(rawBuf) ? rawBuf : Buffer.from(rawBuf as ArrayBuffer);
+  await fs.writeFile(outPath, buffer);
+
+  const mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  await recordFile(filename, originalName, mime, buffer.length, "download-images", outPath);
+
+  const successCount = results.filter((r) => r.status === "success").length;
+  const failCount = results.filter((r) => r.status === "failed").length;
 
   return {
     success: true,
-    downloadUrl: `/api/tools/download?file=${info.filename}`,
-    filename: info.filename,
-    totalImages: results.length,
-    successful: results.filter((r) => r.success).length,
+    downloadUrl: `/api/tools/download?file=${filename}`,
+    filename,
+    totalRows: sheet.rows.length,
+    successCount,
+    failCount,
+    results,
   };
 }
 
