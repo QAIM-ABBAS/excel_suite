@@ -60,8 +60,8 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 
 # Copy configuration files
-COPY nginx.conf /etc/nginx/nginx.conf
-COPY entrypoint.sh /entrypoint.sh
+COPY docker/nginx.conf /etc/nginx/nginx.conf
+COPY docker/entrypoint.sh /entrypoint.sh
 
 RUN chmod +x /entrypoint.sh
 
