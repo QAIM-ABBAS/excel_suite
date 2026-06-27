@@ -168,7 +168,7 @@ export function DownloadImagesTool() {
               </div>
               <div>
                 <CardTitle className="text-base">Download Images into Excel</CardTitle>
-                <CardDescription>Embed images from URLs into your spreadsheet</CardDescription>
+                <CardDescription>Download images from URLs and embed them into Excel cells</CardDescription>
               </div>
             </div>
             {file && (
@@ -207,7 +207,7 @@ export function DownloadImagesTool() {
 
               <div className="rounded-lg border border-pink-500/20 bg-pink-500/5 p-3">
                 <p className="text-xs text-pink-600 dark:text-pink-400">
-                  <strong>How it works:</strong> The tool will iterate through each row, download the image from the URL in the selected column, and mark successful downloads. Supported formats: JPG, PNG, WEBP.
+                  <strong>How it works:</strong> The tool downloads each image URL, embeds the image directly into a new <strong>Image</strong> column in your spreadsheet, and preserves all original data. Supported formats: JPG, PNG, GIF, BMP.
                 </p>
               </div>
             </motion.div>
