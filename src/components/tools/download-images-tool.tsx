@@ -23,6 +23,18 @@ interface ImagesResult {
   results: { row: number; url: string; status: string; error?: string }[]
 }
 
+interface DownloadImagesApiResponse {
+  error?: string
+  downloadUrl?: string
+  filename?: string
+  totalRows?: number
+  successCount?: number
+  failCount?: number
+  totalImages?: number
+  successful?: number
+  results?: { row: number; url: string; status: string; error?: string }[]
+}
+
 export function DownloadImagesTool() {
   const { incrementActiveTasks, decrementActiveTasks, pushNotification } = useAppStore()
   const [file, setFile] = useState<File | null>(null)
@@ -90,20 +102,34 @@ export function DownloadImagesTool() {
       clearInterval(progressInterval)
       setProgress(90)
 
-      const data = await response.json()
+      const data = (await response.json()) as DownloadImagesApiResponse
 
-      if (!response.ok) throw new Error(data.error || "Failed to process images")
+      if (!response.ok || data.error) throw new Error(data.error || "Failed to process images")
+
+      const normalizedResults = Array.isArray(data.results) ? data.results : []
+      const totalRows = data.totalRows ?? data.totalImages ?? normalizedResults.length
+      const successCount = data.successCount ?? data.successful ?? normalizedResults.filter((r) => r.status === "success").length
+      const failCount = data.failCount ?? Math.max(totalRows - successCount, 0)
+
+      const normalizedResult: ImagesResult = {
+        downloadUrl: data.downloadUrl || "",
+        filename: data.filename || "",
+        totalRows,
+        successCount,
+        failCount,
+        results: normalizedResults,
+      }
 
       setProgress(100)
-      setResult(data)
-      toast.success(`Processed ${data.successCount} images successfully!`)
-      if (data.failCount > 0) {
-        toast.warning(`${data.failCount} images failed to download`)
+      setResult(normalizedResult)
+      toast.success(`Processed ${normalizedResult.successCount} images successfully!`)
+      if (normalizedResult.failCount > 0) {
+        toast.warning(`${normalizedResult.failCount} images failed to download`)
       }
       pushNotification({
         title: "Image batch complete",
-        description: `${data.successCount} succeeded, ${data.failCount} failed of ${data.totalRows} total`,
-        type: data.failCount > 0 ? "warning" : "success",
+        description: `${normalizedResult.successCount} succeeded, ${normalizedResult.failCount} failed of ${normalizedResult.totalRows} total`,
+        type: normalizedResult.failCount > 0 ? "warning" : "success",
       })
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Failed to process images"
@@ -123,11 +149,13 @@ export function DownloadImagesTool() {
     setResult(null)
   }
 
-  const filteredResults = result?.results.filter(r => {
+  const resultRows = Array.isArray(result?.results) ? result.results : []
+
+  const filteredResults = resultRows.filter(r => {
     if (viewMode === "success") return r.status === "success"
     if (viewMode === "failed") return r.status === "failed"
     return true
-  }) || []
+  })
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -253,7 +281,7 @@ export function DownloadImagesTool() {
                 )}
 
                 {/* Results table with filter */}
-                {result.results.length > 0 && (
+                {resultRows.length > 0 && (
                   <div className="space-y-2">
                     <div className="flex gap-1 rounded-lg bg-muted/50 p-1">
                       <button
@@ -262,7 +290,7 @@ export function DownloadImagesTool() {
                           viewMode === "all" ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
-                        All ({result.results.length})
+                        All ({resultRows.length})
                       </button>
                       <button
                         onClick={() => setViewMode("success")}
