@@ -1120,6 +1120,37 @@ export async function toolDownloadExcel(args: {
 }
 
 // ─── Tool: download-images ───────────────────────────────────────────────────
+function detectImageFormat(buf: Buffer): {
+  ext: "jpeg" | "png" | "gif" | "bmp";
+  needsConversion: boolean;
+} {
+  // JPEG: FF D8 FF
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff)
+    return { ext: "jpeg", needsConversion: false };
+
+  // PNG: 89 50 4E 47
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47)
+    return { ext: "png", needsConversion: false };
+
+  // GIF: 47 49 46
+  if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46)
+    return { ext: "gif", needsConversion: false };
+
+  // BMP: 42 4D
+  if (buf[0] === 0x42 && buf[1] === 0x4d)
+    return { ext: "bmp", needsConversion: false };
+
+  // WEBP: RIFF....WEBP
+  if (
+    buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
+    buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50
+  )
+    return { ext: "jpeg", needsConversion: true };
+
+  // fallback
+  return { ext: "jpeg", needsConversion: false };
+}
+
 export async function toolDownloadImages(args: {
   filepath: string;
   urlColumn: string;
@@ -1139,13 +1170,13 @@ export async function toolDownloadImages(args: {
     return { error: `Column "${urlColumn}" not found in file` };
   }
 
-  // Import sharp once for dimension detection (already in dependencies)
-  let sharpFn: ((buf: Buffer) => { metadata: () => Promise<{ width?: number; height?: number }> }) | null = null;
+  // Import sharp once at the top
+  let sharp: ((buf: Buffer) => any) | null = null;
   try {
     const sharpMod = await import("sharp");
-    sharpFn = sharpMod.default as any;
+    sharp = sharpMod.default as any;
   } catch {
-    // sharp unavailable; images will use fallback dimensions
+    // sharp unavailable; images will use fallback dimensions, WebP conversion skipped
   }
 
   // Download all image URLs
@@ -1159,31 +1190,31 @@ export async function toolDownloadImages(args: {
       imageBuffers.push(null);
       continue;
     }
-  try {
-    const resp = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:152.0) Gecko/20100101 Firefox/152.0',
-        'Referer': 'https://survey.porsline.ir/',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en-GB;q=0.9,fa;q=0.8',
-        'Accept-Encoding': 'gzip, deflate, br, zstd',
-        'Connection': 'keep-alive',
-      },
-      signal: AbortSignal.timeout(30_000),
-    });
 
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    
-    const buf = Buffer.from(await resp.arrayBuffer());
-    
-    imageBuffers.push(buf);
-    results.push({ row: i + 1, url, status: "success" });
-  } catch (e) {
-    const errMsg = e instanceof Error ? e.message : "Failed";
-    imageBuffers.push(null);
-    results.push({ row: i + 1, url, status: "failed", error: errMsg });
-    await logError("download-images", errMsg, `Row ${i + 1}: ${url}`);
-  }
+    try {
+      const resp = await fetch(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:152.0) Gecko/20100101 Firefox/152.0",
+          "Referer": "https://survey.porsline.ir/",
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "en-US,en-GB;q=0.9,fa;q=0.8",
+          "Accept-Encoding": "gzip, deflate, br, zstd",
+          "Connection": "keep-alive",
+        },
+        signal: AbortSignal.timeout(30_000),
+      });
+
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+      const buf = Buffer.from(await resp.arrayBuffer());
+      imageBuffers.push(buf);
+      results.push({ row: i + 1, url, status: "success" });
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : "Failed";
+      imageBuffers.push(null);
+      results.push({ row: i + 1, url, status: "failed", error: errMsg });
+      await logError("download-images", errMsg, `Row ${i + 1}: ${url}`);
+    }
   }
 
   // Build Excel workbook with embedded images using ExcelJS
@@ -1209,36 +1240,53 @@ export async function toolDownloadImages(args: {
     xlRow.height = IMAGE_ROW_HEIGHT_PT;
 
     const buf = imageBuffers[i];
-    if (buf) {
-      // Detect extension from URL path (before query string)
-      let ext: "jpeg" | "png" | "gif" | "bmp" = "jpeg";
-      const urlPath = results[i].url.toLowerCase().split("?")[0];
-      if (urlPath.endsWith(".png")) ext = "png";
-      else if (urlPath.endsWith(".gif")) ext = "gif";
-      else if (urlPath.endsWith(".bmp")) ext = "bmp";
+    if (!buf) continue;
 
-      // Scale image to fit within cell dimensions
-      let imgW = MAX_IMG_W;
-      let imgH = MAX_IMG_H;
-      if (sharpFn) {
-        try {
-          const meta = await sharpFn(buf).metadata();
-          if (meta.width && meta.height) {
-            const scale = Math.min(MAX_IMG_W / meta.width, MAX_IMG_H / meta.height, 1);
-            imgW = Math.round(meta.width * scale);
-            imgH = Math.round(meta.height * scale);
-          }
-        } catch {
-          // use defaults
-        }
+    // Detect format from magic bytes (not URL string)
+    const { ext, needsConversion } = detectImageFormat(buf);
+
+    // Convert WebP (unsupported by ExcelJS) → JPEG via Sharp
+    let finalBuf = buf;
+    if (needsConversion) {
+      if (!sharp) {
+        // Can't convert without sharp, skip
+        results[i].status = "failed";
+        results[i].error = "WebP detected but sharp unavailable for conversion";
+        await logError("download-images", results[i].error!, `Row ${i + 1}: ${results[i].url}`);
+        continue;
       }
-
-      const imageId = workbook.addImage({ buffer: buf, extension: ext });
-      ws.addImage(imageId, {
-        tl: { col: imgColIdx, row: xlRow.number - 1 } as any,
-        ext: { width: imgW, height: imgH },
-      });
+      try {
+        finalBuf = await sharp(buf).jpeg({ quality: 90 }).toBuffer();
+      } catch (e) {
+        const errMsg = e instanceof Error ? e.message : "WebP conversion failed";
+        results[i].status = "failed";
+        results[i].error = errMsg;
+        await logError("download-images", errMsg, `Row ${i + 1}: ${results[i].url}`);
+        continue;
+      }
     }
+
+    // Scale image to fit within cell dimensions
+    let imgW = MAX_IMG_W;
+    let imgH = MAX_IMG_H;
+    if (sharp) {
+      try {
+        const meta = await sharp(finalBuf).metadata();
+        if (meta.width && meta.height) {
+          const scale = Math.min(MAX_IMG_W / meta.width, MAX_IMG_H / meta.height, 1);
+          imgW = Math.round(meta.width * scale);
+          imgH = Math.round(meta.height * scale);
+        }
+      } catch {
+        // use defaults
+      }
+    }
+
+    const imageId = workbook.addImage({ buffer: finalBuf, extension: ext });
+    ws.addImage(imageId, {
+      tl: { col: imgColIdx, row: xlRow.number - 1 } as any,
+      ext: { width: imgW, height: imgH },
+    });
   }
 
   // Save to downloads directory
