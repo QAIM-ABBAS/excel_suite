@@ -22,6 +22,7 @@ import {
   toolHistoryGet,
   toolHistoryDelete,
   toolErrorsGet,
+  logError,
 } from "@/lib/tools";
 import { DOWNLOAD_DIR } from "@/lib/excel";
 
@@ -112,6 +113,7 @@ export async function POST(
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error(`[POST /api/tools/${toolName}]`, error);
+    await logError(toolName, message, error instanceof Error ? (error.stack || "") : "");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

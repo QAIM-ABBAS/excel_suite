@@ -43,7 +43,7 @@ async function recordFile(
   }
 }
 
-async function logError(tool: string, message: string, details: string = "") {
+export async function logError(tool: string, message: string, details: string = "") {
   try {
     await db.errorLog.create({ data: { tool, message, details } });
   } catch (e) {
@@ -1171,13 +1171,10 @@ export async function toolDownloadImages(args: {
       imageBuffers.push(buf);
       results.push({ row: i + 1, url, status: "success" });
     } catch (e) {
+      const errMsg = e instanceof Error ? e.message : "Failed";
       imageBuffers.push(null);
-      results.push({
-        row: i + 1,
-        url,
-        status: "failed",
-        error: e instanceof Error ? e.message : "Failed",
-      });
+      results.push({ row: i + 1, url, status: "failed", error: errMsg });
+      await logError("download-images", errMsg, `Row ${i + 1}: ${url}`);
     }
   }
 
@@ -1251,6 +1248,18 @@ export async function toolDownloadImages(args: {
 
   const successCount = results.filter((r) => r.status === "success").length;
   const failCount = results.filter((r) => r.status === "failed").length;
+
+  if (failCount > 0) {
+    const failedLines = results
+      .filter((r) => r.status === "failed")
+      .map((r) => `Row ${r.row}: ${r.url} — ${r.error || "unknown"}`)
+      .join("\n");
+    await logError(
+      "download-images",
+      `${failCount} of ${sheet.rows.length} images failed`,
+      failedLines,
+    );
+  }
 
   return {
     success: true,
