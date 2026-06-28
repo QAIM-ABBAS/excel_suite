@@ -316,23 +316,33 @@ export function DownloadImagesTool() {
                             <th className="text-left px-2 py-1.5 text-[10px] text-muted-foreground font-medium">Row</th>
                             <th className="text-left px-2 py-1.5 text-[10px] text-muted-foreground font-medium">URL</th>
                             <th className="text-left px-2 py-1.5 text-[10px] text-muted-foreground font-medium">Status</th>
+                            <th className="text-left px-2 py-1.5 text-[10px] text-muted-foreground font-medium">Error</th>
                           </tr>
                         </thead>
                         <tbody>
                           {filteredResults.slice(0, 50).map((r, i) => (
-                            <tr key={i} className="border-b border-border/30">
+                            <tr key={i} className={`border-b border-border/30 ${r.status === "failed" ? "bg-rose-500/5" : ""}`}>
                               <td className="px-2 py-1.5 text-muted-foreground tabular-nums">{r.row}</td>
-                              <td className="px-2 py-1.5 truncate max-w-[200px]" title={r.url}>{r.url}</td>
-                              <td className="px-2 py-1.5">
+                              <td className="px-2 py-1.5 truncate max-w-[160px]" title={r.url}>{r.url}</td>
+                              <td className="px-2 py-1.5 whitespace-nowrap">
                                 {r.status === "success" ? (
                                   <Badge variant="secondary" className="text-[9px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                                     Success
                                   </Badge>
+                                ) : r.status === "skipped" ? (
+                                  <Badge variant="secondary" className="text-[9px] bg-muted text-muted-foreground">
+                                    Skipped
+                                  </Badge>
                                 ) : (
-                                  <Badge variant="secondary" className="text-[9px] bg-rose-500/10 text-rose-600 dark:text-rose-400" title={r.error}>
+                                  <Badge variant="secondary" className="text-[9px] bg-rose-500/10 text-rose-600 dark:text-rose-400">
                                     Failed
                                   </Badge>
                                 )}
+                              </td>
+                              <td className="px-2 py-1.5 max-w-[200px]" title={r.error}>
+                                {r.error ? (
+                                  <span className="text-rose-500 dark:text-rose-400 break-all">{r.error}</span>
+                                ) : null}
                               </td>
                             </tr>
                           ))}
