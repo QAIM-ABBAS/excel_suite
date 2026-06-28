@@ -1159,23 +1159,31 @@ export async function toolDownloadImages(args: {
       imageBuffers.push(null);
       continue;
     }
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 30_000);
-      const resp = await fetch(url, { signal: controller.signal });
-      clearTimeout(timer);
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const ct = resp.headers.get("content-type") || "";
-      if (!ct.startsWith("image/")) throw new Error("Response is not an image");
-      const buf = Buffer.from(await resp.arrayBuffer());
-      imageBuffers.push(buf);
-      results.push({ row: i + 1, url, status: "success" });
-    } catch (e) {
-      const errMsg = e instanceof Error ? e.message : "Failed";
-      imageBuffers.push(null);
-      results.push({ row: i + 1, url, status: "failed", error: errMsg });
-      await logError("download-images", errMsg, `Row ${i + 1}: ${url}`);
-    }
+  try {
+    const resp = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:152.0) Gecko/20100101 Firefox/152.0',
+        'Referer': 'https://survey.porsline.ir/',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en-GB;q=0.9,fa;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br, zstd',
+        'Connection': 'keep-alive',
+      },
+      signal: AbortSignal.timeout(30_000),
+    });
+
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    
+    const buf = Buffer.from(await resp.arrayBuffer());
+    
+    imageBuffers.push(buf);
+    results.push({ row: i + 1, url, status: "success" });
+  } catch (e) {
+    const errMsg = e instanceof Error ? e.message : "Failed";
+    imageBuffers.push(null);
+    results.push({ row: i + 1, url, status: "failed", error: errMsg });
+    await logError("download-images", errMsg, `Row ${i + 1}: ${url}`);
+  }
   }
 
   // Build Excel workbook with embedded images using ExcelJS
