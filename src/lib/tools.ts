@@ -1197,39 +1197,72 @@ export async function toolDownloadImages(args: {
       continue;
     }
 
+    let currentUrl = url;
+    let finalBuf: Buffer | null = null;
+
     try {
-      const resp = await fetch(url, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:152.0) Gecko/20100101 Firefox/152.0",
-          "Referer": "https://survey.porsline.ir/",
-          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-          "Accept-Language": "en-US,en-GB;q=0.9,fa;q=0.8",
-          "Accept-Encoding": "gzip, deflate, br, zstd",
-          "Connection": "keep-alive",
-        },
-        signal: AbortSignal.timeout(30_000),
-      });
+      // Try up to 2 times (first try = original URL, second try = extracted URL)
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const resp = await fetch(currentUrl, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Referer": "https://survey.porsline.ir/",
+            "Accept": "*/*",
+            "Accept-Language": "en-US,en;q=0.9",
+            // This header is the magic trick! It tells the server we are an AJAX request,
+            // which often bypasses the HTML JavaScript wrapper entirely.
+            "X-Requested-With": "XMLHttpRequest", 
+          },
+          signal: AbortSignal.timeout(30_000),
+        });
 
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
-      // Only block actual HTML error pages — binary/octet-stream is fine
-      const contentType = resp.headers.get("content-type") || "";
-      if (contentType.startsWith("text/html")) {
-        throw new Error(`Server returned HTML page instead of image`);
+        const buf = Buffer.from(await resp.arrayBuffer());
+        const contentType = resp.headers.get("content-type") || "";
+        
+        // Efficiently check if the response is HTML
+        const textStart = buf.subarray(0, 100).toString("utf-8").trimStart();
+        const isHtml = contentType.includes("text/html") || 
+                       textStart.startsWith("<!DOCTYPE") || 
+                       textStart.startsWith("<html");
+
+        if (isHtml) {
+          if (attempt === 0) {
+            // We got the HTML wrapper. Let's try to extract the real link from the JavaScript inside.
+            const htmlText = buf.toString("utf-8");
+            
+            // Look for URLs pointing to storage, or ending in image extensions
+            const match = htmlText.match(/https?:\/\/[^"'\s]+responses\.storage[^"'\s]+/i) || 
+                          htmlText.match(/https?:\/\/[^"'\s]+\.(?:jpeg|jpg|png|webp|gif)[^"'\s]*/i);
+            
+            if (match && match[0] && match[0] !== currentUrl) {
+              currentUrl = match[0]; // Switch to the real link
+              continue; // Loop again to fetch the actual image
+            }
+          }
+          // If we couldn't find a link, or if this was the second attempt, fail.
+          throw new Error("Server returned HTML page instead of image");
+        }
+
+        // If we get here, it's a binary file (success!)
+        if (buf.length === 0) throw new Error("Empty response body");
+        
+        finalBuf = buf;
+        break; // Exit the loop, we have the image
       }
 
-      const buf = Buffer.from(await resp.arrayBuffer());
-      if (buf.length === 0) throw new Error("Empty response body");
+      if (!finalBuf) throw new Error("Failed to download image buffer");
 
-      imageBuffers.push(buf);
-      results.push({ row: i + 1, url, status: "success" });
+      imageBuffers.push(finalBuf);
+      results.push({ row: i + 1, url: currentUrl, status: "success" });
+
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : "Failed";
       imageBuffers.push(null);
-      results.push({ row: i + 1, url, status: "failed", error: errMsg });
-      await logError("download-images", errMsg, `Row ${i + 1}: ${url}`);
+      results.push({ row: i + 1, url: currentUrl, status: "failed", error: errMsg });
+      await logError("download-images", errMsg, `Row ${i + 1}: ${currentUrl}`);
     }
-  }
 
   // Process images into base64 strings
   const imageBase64s: (string | null)[] = [];
