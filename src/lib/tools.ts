@@ -1120,35 +1120,32 @@ export async function toolDownloadExcel(args: {
 }
 
 // ─── Tool: download-images ───────────────────────────────────────────────────
+
 function detectImageFormat(buf: Buffer): {
   ext: "jpeg" | "png" | "gif" | "bmp";
+  mimeType: string;
   needsConversion: boolean;
 } {
-  // JPEG: FF D8 FF
   if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff)
-    return { ext: "jpeg", needsConversion: false };
+    return { ext: "jpeg", mimeType: "image/jpeg", needsConversion: false };
 
-  // PNG: 89 50 4E 47
   if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47)
-    return { ext: "png", needsConversion: false };
+    return { ext: "png", mimeType: "image/png", needsConversion: false };
 
-  // GIF: 47 49 46
   if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46)
-    return { ext: "gif", needsConversion: false };
+    return { ext: "gif", mimeType: "image/gif", needsConversion: false };
 
-  // BMP: 42 4D
   if (buf[0] === 0x42 && buf[1] === 0x4d)
-    return { ext: "bmp", needsConversion: false };
+    return { ext: "bmp", mimeType: "image/bmp", needsConversion: false };
 
   // WEBP: RIFF....WEBP
   if (
     buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
     buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50
   )
-    return { ext: "jpeg", needsConversion: true };
+    return { ext: "jpeg", mimeType: "image/jpeg", needsConversion: true };
 
-  // fallback
-  return { ext: "jpeg", needsConversion: false };
+  return { ext: "jpeg", mimeType: "image/jpeg", needsConversion: false };
 }
 
 export async function toolDownloadImages(args: {
@@ -1161,7 +1158,6 @@ export async function toolDownloadImages(args: {
   if (!filepath) return { error: "File path is required" };
   if (!urlColumn) return { error: "URL column is required" };
 
-  // Read source spreadsheet
   const sheets = await readFileToRows(filepath);
   if (!sheets.length) return { error: "No sheets found in file" };
   const sheet = sheets[0];
@@ -1170,16 +1166,16 @@ export async function toolDownloadImages(args: {
     return { error: `Column "${urlColumn}" not found in file` };
   }
 
-  // Import sharp once at the top
+  // Import sharp once
   let sharp: ((buf: Buffer) => any) | null = null;
   try {
     const sharpMod = await import("sharp");
     sharp = sharpMod.default as any;
   } catch {
-    // sharp unavailable; images will use fallback dimensions, WebP conversion skipped
+    // sharp unavailable
   }
 
-  // Download all image URLs
+  // Download all images
   const results: { row: number; url: string; status: string; error?: string }[] = [];
   const imageBuffers: (Buffer | null)[] = [];
 
@@ -1205,7 +1201,6 @@ export async function toolDownloadImages(args: {
       });
 
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-
       const buf = Buffer.from(await resp.arrayBuffer());
       imageBuffers.push(buf);
       results.push({ row: i + 1, url, status: "success" });
@@ -1217,90 +1212,165 @@ export async function toolDownloadImages(args: {
     }
   }
 
-  // Build Excel workbook with embedded images using ExcelJS
-  const { default: ExcelJS } = await import("exceljs");
-  const workbook = new ExcelJS.Workbook();
-  const ws = workbook.addWorksheet("Sheet1");
+  // Process images into base64 strings
+  const imageBase64s: (string | null)[] = [];
 
-  const IMAGE_COL_CHAR_WIDTH = 20; // ~150px
-  const IMAGE_ROW_HEIGHT_PT = 90;  // ~120px
-  const MAX_IMG_W = 140;
-  const MAX_IMG_H = 110;
-
-  // Original columns + new Image column
-  ws.columns = [
-    ...sheet.columns.map((col) => ({ header: col, key: col, width: 20 })),
-    { header: "Image", key: "__image__", width: IMAGE_COL_CHAR_WIDTH },
-  ];
-  const imgColIdx = sheet.columns.length; // 0-based index of the Image column
-
-  for (let i = 0; i < sheet.rows.length; i++) {
-    const rowObj: Record<string, string> = { ...sheet.rows[i], __image__: "" };
-    const xlRow = ws.addRow(rowObj);
-    xlRow.height = IMAGE_ROW_HEIGHT_PT;
-
+  for (let i = 0; i < imageBuffers.length; i++) {
     const buf = imageBuffers[i];
-    if (!buf) continue;
+    if (!buf) {
+      imageBase64s.push(null);
+      continue;
+    }
 
-    // Detect format from magic bytes (not URL string)
-    const { ext, needsConversion } = detectImageFormat(buf);
+    try {
+      const { mimeType, needsConversion } = detectImageFormat(buf);
+      let finalBuf = buf;
 
-    // Convert WebP (unsupported by ExcelJS) → JPEG via Sharp
-    let finalBuf = buf;
-    if (needsConversion) {
-      if (!sharp) {
-        // Can't convert without sharp, skip
-        results[i].status = "failed";
-        results[i].error = "WebP detected but sharp unavailable for conversion";
-        await logError("download-images", results[i].error!, `Row ${i + 1}: ${results[i].url}`);
-        continue;
-      }
-      try {
+      // Convert WebP → JPEG
+      if (needsConversion && sharp) {
         finalBuf = await sharp(buf).jpeg({ quality: 90 }).toBuffer();
-      } catch (e) {
-        const errMsg = e instanceof Error ? e.message : "WebP conversion failed";
-        results[i].status = "failed";
-        results[i].error = errMsg;
-        await logError("download-images", errMsg, `Row ${i + 1}: ${results[i].url}`);
-        continue;
       }
-    }
 
-    // Scale image to fit within cell dimensions
-    let imgW = MAX_IMG_W;
-    let imgH = MAX_IMG_H;
-    if (sharp) {
-      try {
-        const meta = await sharp(finalBuf).metadata();
-        if (meta.width && meta.height) {
-          const scale = Math.min(MAX_IMG_W / meta.width, MAX_IMG_H / meta.height, 1);
-          imgW = Math.round(meta.width * scale);
-          imgH = Math.round(meta.height * scale);
-        }
-      } catch {
-        // use defaults
+      // Resize to max 200px wide/tall so HTML table stays readable
+      if (sharp) {
+        finalBuf = await sharp(finalBuf)
+          .resize(200, 200, { fit: "inside", withoutEnlargement: true })
+          .toBuffer();
       }
-    }
 
-    const imageId = workbook.addImage({ buffer: finalBuf, extension: ext });
-    ws.addImage(imageId, {
-      tl: { col: imgColIdx, row: xlRow.number - 1 } as any,
-      ext: { width: imgW, height: imgH },
-    });
+      const b64 = finalBuf.toString("base64");
+      const mime = needsConversion ? "image/jpeg" : mimeType;
+      imageBase64s.push(`data:${mime};base64,${b64}`);
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : "Image processing failed";
+      results[i].status = "failed";
+      results[i].error = errMsg;
+      await logError("download-images", errMsg, `Row ${i + 1}: ${results[i].url}`);
+      imageBase64s.push(null);
+    }
   }
 
-  // Save to downloads directory
+  // Build HTML table
+  const otherColumns = sheet.columns.filter((c) => c !== urlColumn);
+
+  const headerCells = [
+    `<th>Image</th>`,
+    ...otherColumns.map((c) => `<th>${escapeHtml(c)}</th>`),
+  ].join("");
+
+  const bodyRows = sheet.rows.map((row, i) => {
+    const imgSrc = imageBase64s[i];
+    const imgCell = imgSrc
+      ? `<td class="img-cell"><img src="${imgSrc}" /></td>`
+      : `<td class="img-cell empty">${results[i]?.error ? "Error" : "—"}</td>`;
+
+    const dataCells = otherColumns
+      .map((c) => `<td>${escapeHtml(String(row[c] ?? ""))}</td>`)
+      .join("");
+
+    return `<tr>${imgCell}${dataCells}</tr>`;
+  });
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${escapeHtml(originalName)}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 13px;
+      background: #f5f5f5;
+      padding: 24px;
+      color: #222;
+    }
+    h1 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #333;
+    }
+    .meta {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 16px;
+    }
+    .table-wrap {
+      overflow-x: auto;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      min-width: 600px;
+    }
+    thead tr {
+      background: #f0f0f0;
+    }
+    th {
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 2px solid #ddd;
+      white-space: nowrap;
+    }
+    td {
+      padding: 8px 14px;
+      border-bottom: 1px solid #eee;
+      vertical-align: middle;
+    }
+    td.img-cell {
+      width: 220px;
+      min-width: 220px;
+      text-align: center;
+      padding: 8px;
+    }
+    td.img-cell img {
+      max-width: 200px;
+      max-height: 200px;
+      border-radius: 4px;
+      display: block;
+      margin: 0 auto;
+    }
+    td.img-cell.empty {
+      color: #bbb;
+      font-size: 12px;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafafa; }
+  </style>
+</head>
+<body>
+  <h1>${escapeHtml(originalName)}</h1>
+  <p class="meta">
+    ${sheet.rows.length} rows · 
+    ${results.filter((r) => r.status === "success").length} images loaded · 
+    Generated ${new Date().toLocaleString()}
+  </p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr>${headerCells}</tr></thead>
+      <tbody>${bodyRows.join("\n")}</tbody>
+    </table>
+  </div>
+</body>
+</html>`;
+
+  // Save file
   await ensureDownloadDirExists();
   const uid = Math.random().toString(36).slice(2, 10);
-  const baseName = sanitizeFilename(path.basename(originalName, path.extname(originalName))) || "images";
-  const filename = `${baseName}_embedded_${uid}.xlsx`;
+  const baseName =
+    sanitizeFilename(path.basename(originalName, path.extname(originalName))) || "images";
+  const filename = `${baseName}_images_${uid}.html`;
   const outPath = path.join(DOWNLOAD_DIR, filename);
-  const rawBuf = await workbook.xlsx.writeBuffer();
-  const buffer = Buffer.isBuffer(rawBuf) ? rawBuf : Buffer.from(rawBuf as ArrayBuffer);
-  await fs.writeFile(outPath, buffer);
+  await fs.writeFile(outPath, html, "utf-8");
 
-  const mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-  await recordFile(filename, originalName, mime, buffer.length, "download-images", outPath);
+  const mime = "text/html";
+  await recordFile(filename, originalName, mime, Buffer.byteLength(html), "download-images", outPath);
 
   const successCount = results.filter((r) => r.status === "success").length;
   const failCount = results.filter((r) => r.status === "failed").length;
@@ -1327,6 +1397,18 @@ export async function toolDownloadImages(args: {
     results,
   };
 }
+
+// Helper to prevent XSS in the HTML output
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+
+
 
 async function ensureDownloadDirExists() {
   await fs.mkdir(DOWNLOAD_DIR, { recursive: true });
