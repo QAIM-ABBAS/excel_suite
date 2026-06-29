@@ -1125,27 +1125,37 @@ function detectImageFormat(buf: Buffer): {
   ext: "jpeg" | "png" | "gif" | "bmp";
   mimeType: string;
   needsConversion: boolean;
+  isSupported: boolean;
 } {
   if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff)
-    return { ext: "jpeg", mimeType: "image/jpeg", needsConversion: false };
+    return { ext: "jpeg", mimeType: "image/jpeg", needsConversion: false, isSupported: true };
 
   if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47)
-    return { ext: "png", mimeType: "image/png", needsConversion: false };
+    return { ext: "png", mimeType: "image/png", needsConversion: false, isSupported: true };
 
   if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46)
-    return { ext: "gif", mimeType: "image/gif", needsConversion: false };
+    return { ext: "gif", mimeType: "image/gif", needsConversion: false, isSupported: true };
 
   if (buf[0] === 0x42 && buf[1] === 0x4d)
-    return { ext: "bmp", mimeType: "image/bmp", needsConversion: false };
+    return { ext: "bmp", mimeType: "image/bmp", needsConversion: false, isSupported: true };
 
   // WEBP: RIFF....WEBP
   if (
     buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
     buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50
   )
-    return { ext: "jpeg", mimeType: "image/jpeg", needsConversion: true };
+    return { ext: "jpeg", mimeType: "image/jpeg", needsConversion: true, isSupported: true };
 
-  return { ext: "jpeg", mimeType: "image/jpeg", needsConversion: false };
+  // Unknown — likely HTML error page or corrupted
+  return { ext: "jpeg", mimeType: "image/jpeg", needsConversion: false, isSupported: false };
+}
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 export async function toolDownloadImages(args: {
@@ -1172,7 +1182,7 @@ export async function toolDownloadImages(args: {
     const sharpMod = await import("sharp");
     sharp = sharpMod.default as any;
   } catch {
-    // sharp unavailable
+    // sharp unavailable — WebP conversion and resize will be skipped
   }
 
   // Download all images
@@ -1201,7 +1211,16 @@ export async function toolDownloadImages(args: {
       });
 
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+      // Only block actual HTML error pages — binary/octet-stream is fine
+      const contentType = resp.headers.get("content-type") || "";
+      if (contentType.startsWith("text/html")) {
+        throw new Error(`Server returned HTML page instead of image`);
+      }
+
       const buf = Buffer.from(await resp.arrayBuffer());
+      if (buf.length === 0) throw new Error("Empty response body");
+
       imageBuffers.push(buf);
       results.push({ row: i + 1, url, status: "success" });
     } catch (e) {
@@ -1223,7 +1242,17 @@ export async function toolDownloadImages(args: {
     }
 
     try {
-      const { mimeType, needsConversion } = detectImageFormat(buf);
+      const { mimeType, needsConversion, isSupported } = detectImageFormat(buf);
+
+      // Skip completely if not a recognized image format
+      if (!isSupported) {
+        results[i].status = "failed";
+        results[i].error = "Unrecognized image format (possibly corrupted)";
+        await logError("download-images", results[i].error!, `Row ${i + 1}: ${results[i].url}`);
+        imageBase64s.push(null);
+        continue;
+      }
+
       let finalBuf = buf;
 
       // Convert WebP → JPEG
@@ -1233,9 +1262,13 @@ export async function toolDownloadImages(args: {
 
       // Resize to max 200px wide/tall so HTML table stays readable
       if (sharp) {
-        finalBuf = await sharp(finalBuf)
-          .resize(200, 200, { fit: "inside", withoutEnlargement: true })
-          .toBuffer();
+        try {
+          finalBuf = await sharp(finalBuf)
+            .resize(200, 200, { fit: "inside", withoutEnlargement: true })
+            .toBuffer();
+        } catch {
+          // resize failed, use buf as-is
+        }
       }
 
       const b64 = finalBuf.toString("base64");
@@ -1398,14 +1431,7 @@ export async function toolDownloadImages(args: {
   };
 }
 
-// Helper to prevent XSS in the HTML output
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
+
 
 
 
