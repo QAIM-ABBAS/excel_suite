@@ -1263,6 +1263,7 @@ export async function toolDownloadImages(args: {
       results.push({ row: i + 1, url: currentUrl, status: "failed", error: errMsg });
       await logError("download-images", errMsg, `Row ${i + 1}: ${currentUrl}`);
     }
+  }
 
   // Process images into base64 strings
   const imageBase64s: (string | null)[] = [];
