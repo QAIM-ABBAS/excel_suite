@@ -40,6 +40,7 @@ export function DownloadImagesTool() {
   const [file, setFile] = useState<File | null>(null)
   const [columns, setColumns] = useState<string[]>([])
   const [selectedColumn, setSelectedColumn] = useState("")
+  const [selectedColumns, setSelectedColumns] = useState<string[]>([])
   const [maxImageSize, setMaxImageSize] = useState("200")
   const [isProcessing, setIsProcessing] = useState(false)
   const [isLoadingColumns, setIsLoadingColumns] = useState(false)
@@ -66,12 +67,19 @@ export function DownloadImagesTool() {
       if (data.success && data.sheets.length > 0) {
         setColumns(data.sheets[0].columns)
         setSelectedColumn(data.sheets[0].columns[0] || "")
+        setSelectedColumns([])
       }
     } catch {
       toast.error("Failed to read file columns")
     } finally {
       setIsLoadingColumns(false)
     }
+  }
+
+  const toggleColumn = (col: string) => {
+    setSelectedColumns((prev) =>
+      prev.includes(col) ? prev.filter((c) => c !== col) : [...prev, col]
+    )
   }
 
   const handleProcess = async () => {
@@ -88,6 +96,7 @@ export function DownloadImagesTool() {
       const formData = new FormData()
       formData.append("file", file)
       formData.append("urlColumn", selectedColumn)
+      formData.append("selectedColumns", JSON.stringify(selectedColumns))
 
       // Simulate progress during download
       const progressInterval = setInterval(() => {
@@ -146,6 +155,7 @@ export function DownloadImagesTool() {
     setFile(null)
     setColumns([])
     setSelectedColumn("")
+    setSelectedColumns([])
     setResult(null)
   }
 
@@ -203,6 +213,42 @@ export function DownloadImagesTool() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Column scope selection */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-muted-foreground">
+                    Columns to Include in Export
+                  </Label>
+                  <Badge variant="secondary" className="text-[10px]">
+                    {selectedColumns.length === 0 ? "All columns" : `${selectedColumns.length} selected`}
+                  </Badge>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {columns.filter(col => col !== selectedColumn).map((col) => {
+                    const active = selectedColumns.includes(col)
+                    return (
+                      <button
+                        key={col}
+                        type="button"
+                        onClick={() => toggleColumn(col)}
+                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition-all ${
+                          active
+                            ? "border-pink-500/40 bg-pink-500/10 text-pink-600 dark:text-pink-400"
+                            : "border-border/50 bg-muted/30 hover:bg-muted/60"
+                        }`}
+                      >
+                        {col}
+                      </button>
+                    )
+                  })}
+                </div>
+                {selectedColumns.length === 0 && (
+                  <p className="text-[10px] text-muted-foreground">
+                    No columns selected — all columns (except URL) will be included in the export.
+                  </p>
+                )}
               </div>
 
               <div className="rounded-lg border border-pink-500/20 bg-pink-500/5 p-3">

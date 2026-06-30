@@ -1162,8 +1162,9 @@ export async function toolDownloadImages(args: {
   filepath: string;
   urlColumn: string;
   originalName?: string;
+  selectedColumns?: string[];
 }) {
-  const { filepath, urlColumn, originalName = "images" } = args;
+  const { filepath, urlColumn, originalName = "images", selectedColumns } = args;
 
   if (!filepath) return { error: "File path is required" };
   if (!urlColumn) return { error: "URL column is required" };
@@ -1318,7 +1319,10 @@ export async function toolDownloadImages(args: {
   }
 
   // Build HTML table
-  const otherColumns = sheet.columns.filter((c) => c !== urlColumn);
+  let otherColumns = sheet.columns.filter((c) => c !== urlColumn);
+  if (selectedColumns && selectedColumns.length > 0) {
+    otherColumns = otherColumns.filter((c) => selectedColumns.includes(c));
+  }
 
   const headerCells = [
     `<th>Image</th>`,
